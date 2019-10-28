@@ -1,0 +1,29 @@
+Source: libnetstack
+Priority: optional
+Maintainer: Nick Black <dankamongmen@gmail.com>
+Build-Depends: debhelper-compat (= 12)
+Standards-Version: 4.4.1.1
+Section: libs
+Homepage: https://github.com/dankamongmen/libnetstack
+Vcs-Git: https://github.com/dankamongmen/libnetstack.git
+
+Package: libnetstack-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libnetstack0 (= ${binary:Version}), ${misc:Depends}
+Description: Development support for libnetstack
+ Connects to the kernel via an rtnetlink socket, collects information
+ about the current network namespace (devices, routes, addresses, etc.),
+ and subscribes to updates, about which it can notify the caller.
+ .
+ These are the development support files.
+
+Package: libnetstack0
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Stateful netstack model built atop rtnetlink
+ Connects to the kernel via an rtnetlink socket, collects information
+ about the current network namespace (devices, routes, addresses, etc.),
+ and subscribes to updates, about which it can notify the caller.
