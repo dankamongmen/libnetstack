@@ -1,7 +1,7 @@
 Source: libnetstack
 Priority: optional
 Maintainer: Nick Black <dankamongmen@gmail.com>
-Build-Depends: debhelper-compat (= 12)
+Build-Depends: debhelper-compat (= 12), cmake (>= 3.13)
 Standards-Version: 4.4.1.1
 Section: libs
 Homepage: https://github.com/dankamongmen/libnetstack
