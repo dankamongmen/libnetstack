@@ -10,9 +10,11 @@ typedef struct netstack {
 } netstack;
 
 netstack* netstack_create(const netstack_opts* nopts){
-  if(nopts->no_thread){
-    fprintf(stderr, "Threadless mode is not yet supported\n"); // FIXME
-    return NULL;
+  if(nopts){
+    if(nopts->no_thread){
+      fprintf(stderr, "Threadless mode is not yet supported\n"); // FIXME
+      return NULL;
+    }
   }
   netstack* ns = malloc(sizeof(*ns));
   if(ns){
