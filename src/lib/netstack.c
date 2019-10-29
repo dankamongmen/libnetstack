@@ -85,8 +85,17 @@ netstack_dump(netstack* ns){
   struct rtgenmsg rt = {
     .rtgen_family = AF_UNSPEC,
   };
-  if(nl_send_simple(ns->nl, RTM_GETLINK, NLM_F_DUMP, &rt, sizeof(rt)) < 0){
-    return -1;
+  const int dumpmsgs[] = {
+    RTM_GETLINK,
+    /*RTM_GETADDR,
+    RTM_GETROUTE,
+    RTM_GETNEIGH,*/
+  };
+  size_t i;
+  for(i = 0 ; i < sizeof(dumpmsgs) / sizeof(*dumpmsgs) ; ++i){
+    if(nl_send_simple(ns->nl, dumpmsgs[i], NLM_F_DUMP, &rt, sizeof(rt)) < 0){
+      return -1;
+    }
   }
   return 0;
 }
