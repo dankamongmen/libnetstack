@@ -61,6 +61,18 @@ netstack_init(netstack* ns){
   return 0;
 }
 
+// Get an initial dump of all entities. We'll receive updates via subscription.
+static int
+netstack_dump(netstack* ns){
+  struct rtgenmsg rt = {
+    .rtgen_family = AF_UNSPEC,
+  };
+  if(nl_send_simple(ns->nl, RTM_GETLINK, NLM_F_DUMP, &rt, sizeof(rt)) < 0){
+    return -1;
+  }
+  return 0;
+}
+
 netstack* netstack_create(const netstack_opts* nopts){
   if(nopts){
     if(nopts->no_thread){
@@ -72,6 +84,10 @@ netstack* netstack_create(const netstack_opts* nopts){
   if(ns){
     if(netstack_init(ns)){
       free(ns);
+      return NULL;
+    }
+    if(netstack_dump(ns)){
+      netstack_destroy(ns);
       return NULL;
     }
   }
