@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <netlink/msg.h>
 #include <linux/if_link.h>
 #include <linux/netlink.h>
 #include <netlink/socket.h>
@@ -36,7 +37,31 @@ static int
 msg_handler(struct nl_msg* msg, void* vns){
   const netstack* ns = vns;
   fprintf(stderr, "Netlink msg %p %p\n", msg, ns);
-  return NL_OK; // FIXME
+  struct nlmsghdr* nhdr = nlmsg_hdr(msg);
+  int nlen = nhdr->nlmsg_len;
+  while(nlmsg_ok(nhdr, nlen)){
+    const struct rtmsg* rt = NLMSG_DATA(nhdr);
+    const int ntype = nhdr->nlmsg_type;
+    const struct rtattr *rta;
+    switch(ntype){
+      case RTM_NEWLINK: rta = IFLA_RTA(rt); break;
+      default: fprintf(stderr, "Unknown nl type: %d\n", ntype);
+    }
+    int rlen = RTM_PAYLOAD(nhdr);
+    while(RTA_OK(rta, rlen)){
+      printf("RTA type %d len %d\n", rta->rta_type, rlen);
+      // FIXME
+      rta = RTA_NEXT(rta, rlen);
+    }
+    if(rlen){
+printf("FAILED RLEN? %d\n", rlen); // FIXME
+    }
+    nhdr = nlmsg_next(nhdr, &nlen);
+  }
+  if(nlen){
+    fprintf(stderr, "Netlink message was invalid, %db left\n", nlen); // FIXME
+  }
+  return NL_OK;
 }
 
 static int
