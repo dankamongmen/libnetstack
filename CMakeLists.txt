@@ -5,6 +5,8 @@ project(netstack VERSION 0.0.1
   LANGUAGES C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 14)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
 
 include(GNUInstallDirs)
 find_package(PkgConfig REQUIRED)
@@ -20,7 +22,12 @@ set_target_properties(netstack PROPERTIES
 )
 
 target_include_directories(netstack PRIVATE ${NL3_INCLUDE_DIR})
-target_link_libraries(netstack PRIVATE ${NL3_LIBRARIES})
+target_link_libraries(netstack
+  PRIVATE
+    ${NL3_LIBRARIES}
+  INTERFACE
+	  Threads::Threads
+)
 target_compile_options(netstack PRIVATE
   ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
   -Wall -Wextra -W
