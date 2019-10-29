@@ -35,19 +35,22 @@ netstack_thread(void* vns){
 // FIXME disable cancellation in callbacks
 static int
 msg_handler(struct nl_msg* msg, void* vns){
-  const netstack* ns = vns;
-  fprintf(stderr, "Netlink msg %p %p\n", msg, ns);
+  const netstack* ns = vns; (void)ns; // FIXME
   struct nlmsghdr* nhdr = nlmsg_hdr(msg);
+  fprintf(stderr, "nl %db msg type %d\n", nhdr->nlmsg_len, nhdr->nlmsg_type);
   int nlen = nhdr->nlmsg_len;
   while(nlmsg_ok(nhdr, nlen)){
-    const struct rtmsg* rt = NLMSG_DATA(nhdr);
     const int ntype = nhdr->nlmsg_type;
-    const struct rtattr *rta;
+    const struct rtattr *rta = NULL;
+    const struct ifinfomsg* ifi = NLMSG_DATA(nhdr);
     switch(ntype){
-      case RTM_NEWLINK: rta = IFLA_RTA(rt); break;
-      default: fprintf(stderr, "Unknown nl type: %d\n", ntype);
+      case RTM_NEWLINK: rta = IFLA_RTA(ifi); break;
+      default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
     }
-    int rlen = RTM_PAYLOAD(nhdr);
+    if(rta == NULL){
+      break;
+    }
+    int rlen = nlen - NLMSG_LENGTH(sizeof(*ifi));
     while(RTA_OK(rta, rlen)){
       printf("RTA type %d len %d\n", rta->rta_type, rlen);
       // FIXME
