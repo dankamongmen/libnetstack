@@ -114,6 +114,13 @@ create_iface(void){
   return ni;
 }
 
+static void
+free_iface(netstack_iface* ni){
+  if(ni){
+    free(ni);
+  }
+}
+
 // FIXME disable cancellation in callbacks
 static int
 msg_handler(struct nl_msg* msg, void* vns){
@@ -131,20 +138,24 @@ msg_handler(struct nl_msg* msg, void* vns){
       default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
     }
     if(rta == NULL){
+      free_iface(ni);
       break;
     }
     // FIXME factor all of this out probably
     int rlen = nlen - NLMSG_LENGTH(sizeof(*ifi));
     while(RTA_OK(rta, rlen)){
       if(!link_rta_handler(ni, rta, rlen)){
+        free_iface(ni);
         break;
       }
       rta = RTA_NEXT(rta, rlen);
     }
     if(rlen){
+      free_iface(ni);
       fprintf(stderr, "Netlink attr was invalid, %db left\n", rlen);
       return NL_SKIP;
     }
+    free_iface(ni); // FIXME do something with ni
     nhdr = nlmsg_next(nhdr, &nlen);
   }
   if(nlen){
