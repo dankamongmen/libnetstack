@@ -19,6 +19,11 @@ typedef struct netstack {
   bool thread_spawned;
 } netstack;
 
+typedef struct netstack_iface {
+  char name[IFNAMSIZ];
+  // FIXME
+} netstack_iface;
+
 // Sits on blocking nl_recvmsgs()
 static void*
 netstack_thread(void* vns){
@@ -32,6 +37,82 @@ netstack_thread(void* vns){
   return NULL;
 }
 
+static bool
+link_rta_handler(netstack_iface* ni, const struct rtattr* rta, int rlen){
+  switch(rta->rta_type){
+    case IFLA_ADDRESS:
+      // FIXME copy L2 ucast address
+      break;
+    case IFLA_BROADCAST:
+      // FIXME copy L2 bcast address
+      break;
+    case IFLA_IFNAME:
+      strcpy(ni->name, RTA_DATA(rta)); // FIXME rigourize
+      break;
+    case IFLA_MTU:
+      // FIXME copy mtu
+      break;
+    case IFLA_LINK: case IFLA_QDISC: case IFLA_STATS:
+      // FIXME
+      break;
+    case IFLA_COST:
+    case IFLA_PRIORITY:
+    case IFLA_MASTER:
+    case IFLA_WIRELESS:		/* Wireless Extension event - see wireless.h */
+    case IFLA_PROTINFO:		/* Protocol specific information for a link */
+    case IFLA_TXQLEN:
+    case IFLA_MAP:
+    case IFLA_WEIGHT:
+    case IFLA_OPERSTATE:
+    case IFLA_LINKMODE:
+    case IFLA_LINKINFO:
+    case IFLA_NET_NS_PID:
+    case IFLA_IFALIAS:
+    case IFLA_NUM_VF:		/* Number of VFs if device is SR-IOV PF */
+    case IFLA_VFINFO_LIST:
+    case IFLA_STATS64:
+    case IFLA_VF_PORTS:
+    case IFLA_PORT_SELF:
+    case IFLA_AF_SPEC:
+    case IFLA_GROUP:		/* Group the device belongs to */
+    case IFLA_NET_NS_FD:
+    case IFLA_EXT_MASK:		/* Extended info mask: VFs: etc */
+    case IFLA_PROMISCUITY:	/* Promiscuity count: > 0 means acts PROMISC */
+    case IFLA_NUM_TX_QUEUES:
+    case IFLA_NUM_RX_QUEUES:
+    case IFLA_CARRIER:
+    case IFLA_PHYS_PORT_ID:
+    case IFLA_CARRIER_CHANGES:
+    case IFLA_PHYS_SWITCH_ID:
+    case IFLA_LINK_NETNSID:
+    case IFLA_PHYS_PORT_NAME:
+    case IFLA_PROTO_DOWN:
+    case IFLA_GSO_MAX_SEGS:
+    case IFLA_GSO_MAX_SIZE:
+    case IFLA_PAD:
+    case IFLA_XDP:
+    case IFLA_EVENT:
+    case IFLA_NEW_NETNSID:
+    case IFLA_TARGET_NETNSID:
+    case IFLA_CARRIER_UP_COUNT:
+    case IFLA_CARRIER_DOWN_COUNT:
+    case IFLA_NEW_IFINDEX:
+    case IFLA_MIN_MTU:
+    case IFLA_MAX_MTU:
+      break;
+    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, rlen); return false;
+  }
+  return true;
+}
+
+static netstack_iface*
+create_iface(void){
+  netstack_iface* ni;
+  ni = malloc(sizeof(*ni));
+  memset(ni, 0, sizeof(*ni));
+  return ni;
+}
+
 // FIXME disable cancellation in callbacks
 static int
 msg_handler(struct nl_msg* msg, void* vns){
@@ -43,6 +124,7 @@ msg_handler(struct nl_msg* msg, void* vns){
     const int ntype = nhdr->nlmsg_type;
     const struct rtattr *rta = NULL;
     const struct ifinfomsg* ifi = NLMSG_DATA(nhdr);
+    netstack_iface* ni = create_iface();
     switch(ntype){
       case RTM_NEWLINK: rta = IFLA_RTA(ifi); break;
       default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
@@ -50,19 +132,23 @@ msg_handler(struct nl_msg* msg, void* vns){
     if(rta == NULL){
       break;
     }
+    // FIXME factor all of this out probably
     int rlen = nlen - NLMSG_LENGTH(sizeof(*ifi));
     while(RTA_OK(rta, rlen)){
-      printf("RTA type %d len %d\n", rta->rta_type, rlen);
-      // FIXME
+      if(!link_rta_handler(ni, rta, rlen)){
+        break;
+      }
       rta = RTA_NEXT(rta, rlen);
     }
     if(rlen){
-printf("FAILED RLEN? %d\n", rlen); // FIXME
+      fprintf(stderr, "Netlink attr was invalid, %db left\n", rlen);
+      return NL_SKIP;
     }
     nhdr = nlmsg_next(nhdr, &nlen);
   }
   if(nlen){
-    fprintf(stderr, "Netlink message was invalid, %db left\n", nlen); // FIXME
+    fprintf(stderr, "Netlink message was invalid, %db left\n", nlen);
+    return NL_SKIP;
   }
   return NL_OK;
 }
