@@ -31,6 +31,7 @@ netstack_thread(void* vns){
   return NULL;
 }
 
+// FIXME disable cancellation in callbacks
 static int
 msg_handler(struct nl_msg* msg, void* vns){
   const netstack* ns = vns;
