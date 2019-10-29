@@ -14,7 +14,6 @@
 
 typedef struct netstack {
   struct nl_sock* nl;  // netlink connection abstraction from libnl
-  struct nl_cb* cbset; // libnl callback set
   pthread_t tid;
   bool thread_spawned;
 } netstack;
@@ -61,17 +60,13 @@ netstack_init(netstack* ns){
     nl_socket_free(ns->nl);
     return -1;
   }
-  if((ns->cbset = nl_cb_alloc(NL_CB_VERBOSE)) == NULL){
-    nl_socket_free(ns->nl);
-    return -1;
-  }
   // Passes this netstack object to libnl. The nl_sock thus must be destroyed
   // before the netstack itself is.
-  if(nl_cb_set(ns->cbset, NL_CB_VALID, NL_CB_CUSTOM, msg_handler, ns)){
+  if(nl_socket_modify_cb(ns->nl, NL_CB_VALID, NL_CB_CUSTOM, msg_handler, ns)){
     nl_socket_free(ns->nl);
     return -1;
   }
-  if(nl_cb_err(ns->cbset, NL_CB_VERBOSE, err_handler, ns)){
+  if(nl_socket_modify_err_cb(ns->nl, NL_CB_CUSTOM, err_handler, ns)){
     nl_socket_free(ns->nl);
     return -1;
   }
