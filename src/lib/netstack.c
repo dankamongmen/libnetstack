@@ -28,11 +28,12 @@ typedef struct netstack_iface {
 static void*
 netstack_thread(void* vns){
   netstack* ns = vns;
-  while(nl_recvmsgs_default(ns->nl) == 0){
+  int ret;
+  while((ret = nl_recvmsgs_default(ns->nl)) == 0){
     printf("Got a netlink message!\n"); // FIXME
   }
   fprintf(stderr, "Error receiving from netlink socket (%s)\n",
-          strerror(errno));
+          nl_geterror(ret));
   // FIXME recover?
   return NULL;
 }
@@ -202,8 +203,8 @@ netstack_dump(netstack* ns){
   };
   const int dumpmsgs[] = {
     RTM_GETLINK,
-    /*RTM_GETADDR,
-    RTM_GETROUTE,
+    RTM_GETADDR,
+    /*RTM_GETROUTE,
     RTM_GETNEIGH,*/
   };
   size_t i;
