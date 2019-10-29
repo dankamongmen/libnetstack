@@ -1,48 +1,49 @@
 cmake_minimum_required(VERSION 3.13)
-project(libnetstack VERSION 0.0.1
+project(netstack VERSION 0.0.1
   DESCRIPTION "Netlink-based networking stack model"
-  HOMEPAGE_URL "https://github.com/dankamongmen/libnetstack"
+  HOMEPAGE_URL "https://github.com/dankamongmen/netstack"
   LANGUAGES C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 14)
 
 include(GNUInstallDirs)
 find_package(PkgConfig REQUIRED)
+pkg_check_modules(NL3 REQUIRED libnl-3.0>=3.4.0)
 
 file(GLOB LIBSRCS CONFIGURE_DEPENDS src/lib/*.c)
-add_library(libnetstack SHARED ${LIBSRCS})
-target_include_directories(libnetstack PRIVATE include)
-set_target_properties(libnetstack PROPERTIES
-  PUBLIC_HEADER "include/libnetstack.h"
+add_library(netstack SHARED ${LIBSRCS})
+target_include_directories(netstack PRIVATE include)
+set_target_properties(netstack PROPERTIES
+  PUBLIC_HEADER "include/netstack.h"
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR}
 )
 
-target_include_directories(libnetstack PRIVATE ${CURSES_INCLUDE_DIR})
-target_link_libraries(libnetstack INTERFACE ${CURSES_LIBRARIES})
-target_compile_options(libnetstack PRIVATE
-  ${CURSES_CFLAGS} ${CURSES_CFLAGS_OTHER}
+target_include_directories(netstack PRIVATE ${NL3_INCLUDE_DIR})
+target_link_libraries(netstack PRIVATE ${NL3_LIBRARIES})
+target_compile_options(netstack PRIVATE
+  ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
   -Wall -Wextra -W
 )
 
 file(GLOB BINSRCS CONFIGURE_DEPENDS src/bin/*.c)
-add_executable(libnetstack-demo ${BINSRCS})
-target_include_directories(libnetstack-demo PRIVATE include)
-target_compile_options(libnetstack-demo PRIVATE
+add_executable(netstack-demo ${BINSRCS})
+target_include_directories(netstack-demo PRIVATE include)
+target_compile_options(netstack-demo PRIVATE
   -Wall -Wextra
 )
-target_link_libraries(libnetstack-demo libnetstack)
+target_link_libraries(netstack-demo netstack)
 
 file(GLOB TESTSRCS CONFIGURE_DEPENDS tests/*.cpp)
-add_executable(libnetstack-tester ${TESTSRCS})
+add_executable(netstack-tester ${TESTSRCS})
 find_package(GTest 1.9 REQUIRED)
-target_link_libraries(libnetstack-tester
+target_link_libraries(netstack-tester
   GTest::GTest
-  libnetstack
+  netstack
 )
-target_include_directories(libnetstack-tester PRIVATE include)
+target_include_directories(netstack-tester PRIVATE include)
 
-gtest_discover_tests(libnetstack-tester)
+gtest_discover_tests(netstack-tester)
 enable_testing()
 
 configure_file(tools/libnetstack.pc.in
@@ -54,7 +55,7 @@ include(CMakePackageConfigHelpers)
 
 configure_package_config_file(tools/libnetstackConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/libnetstackConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/libnetstack/cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/netstack/cmake
 )
 
 write_basic_package_version_file(
@@ -73,8 +74,8 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
 )
 
-install(TARGETS libnetstack-demo DESTINATION bin)
-install(TARGETS libnetstack
+install(TARGETS netstack-demo DESTINATION bin)
+install(TARGETS netstack
   LIBRARY
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT Libraries
