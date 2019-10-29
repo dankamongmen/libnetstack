@@ -16,6 +16,7 @@ typedef struct netstack {
   struct nl_sock* nl;  // netlink connection abstraction from libnl
   struct nl_cb* cbset; // libnl callback set
   pthread_t tid;
+  bool thread_spawned;
 } netstack;
 
 // Sits on blocking nl_recvmsgs()
@@ -47,6 +48,7 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
 
 static int
 netstack_init(netstack* ns){
+  ns->thread_spawned = false;
   if((ns->nl = nl_socket_alloc()) == NULL){
     return -1;
   }
@@ -73,7 +75,9 @@ netstack_init(netstack* ns){
     nl_socket_free(ns->nl);
     return -1;
   }
+  ns->thread_spawned = true;
   if(pthread_create(&ns->tid, NULL, netstack_thread, ns)){
+    ns->thread_spawned = false;
     nl_socket_free(ns->nl);
     return -1;
   }
@@ -115,6 +119,14 @@ netstack* netstack_create(const netstack_opts* nopts){
 
 int netstack_destroy(netstack* ns){
   int ret = 0;
+  if(ns->thread_spawned){
+    void* vret;
+    if(pthread_cancel(ns->tid) == 0){
+      ret |= pthread_join(ns->tid, &vret);
+    }else{
+      ret = -1;
+    }
+  }
   nl_socket_free(ns->nl);
   free(ns);
   return ret;
