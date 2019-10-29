@@ -43,17 +43,33 @@ netstack_rx_thread(void* vns){
   return NULL;
 }
 
+static void
+tx_cancel_clean(void* vns){
+  netstack* ns = vns;
+  pthread_mutex_unlock(&ns->txlock);
+}
+
 // Sits on condition variable, transmitting when there's data in the txqueue
 static void*
 netstack_tx_thread(void* vns){
   netstack* ns = vns;
-  int ret;
-  while((ret = nl_recvmsgs_default(ns->nl)) == 0){
-    printf("Got a netlink message!\n"); // FIXME
+  pthread_mutex_lock(&ns->txlock);
+  while(ns->txqueue[0] == -1){
+    pthread_cleanup_push(tx_cancel_clean, ns);
+    pthread_cond_wait(&ns->txcond, &ns->txlock);
+    pthread_cleanup_pop(0);
   }
-  fprintf(stderr, "Error receiving from netlink socket (%s)\n",
-          nl_geterror(ret));
-  // FIXME recover?
+  int i = 0;
+  do{
+    struct rtgenmsg rt = {
+      .rtgen_family = AF_UNSPEC,
+    };
+    if(nl_send_simple(ns->nl, ns->txqueue[i], NLM_F_REQUEST|NLM_F_DUMP, &rt, sizeof(rt)) < 0){
+      // FIXME do what?
+    }
+  }while(ns->txqueue[++i] != -1);
+  ns->txqueue[0] = -1;
+  pthread_mutex_unlock(&ns->txlock);
   return NULL;
 }
 
@@ -205,7 +221,7 @@ netstack_dump(netstack* ns){
   };
   size_t i;
   for(i = 0 ; i < sizeof(dumpmsgs) / sizeof(*dumpmsgs) ; ++i){
-    if(nl_send_simple(ns->nl, dumpmsgs[i], NLM_F_DUMP, &rt, sizeof(rt)) < 0){
+    if(nl_send_simple(ns->nl, dumpmsgs[i], NLM_F_REQUEST | NLM_F_DUMP, &rt, sizeof(rt)) < 0){
       return -1;
     }
   }
