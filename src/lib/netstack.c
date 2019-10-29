@@ -5,13 +5,32 @@
 #include <string.h>
 #include <linux/if_link.h>
 #include <linux/netlink.h>
+#include <netlink/socket.h>
+#include <netlink/netlink.h>
 #include <linux/rtnetlink.h>
 #include <sys/socket.h>
 #include "netstack.h"
 
 typedef struct netstack {
-  int fd; // netlink fd
+  struct nl_sock* nl; // netlink connection abstraction from libnl
 } netstack;
+
+static int
+netstack_init(netstack* ns){
+  if((ns->nl = nl_socket_alloc()) == NULL){
+    return -1;
+  }
+  nl_socket_disable_seq_check(ns->nl);
+  if(nl_connect(ns->nl, NETLINK_ROUTE)){
+    nl_socket_free(ns->nl);
+    return -1;
+  }
+  if(nl_socket_add_memberships(ns->nl, RTNLGRP_LINK, NFNLGRP_NONE)){
+    nl_socket_free(ns->nl);
+    return -1;
+  }
+  return 0;
+}
 
 netstack* netstack_create(const netstack_opts* nopts){
   if(nopts){
@@ -22,21 +41,17 @@ netstack* netstack_create(const netstack_opts* nopts){
   }
   netstack* ns = malloc(sizeof(*ns));
   if(ns){
-    if((ns->fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE)) < 0){
-      fprintf(stderr, "Error getting rtnetlink socket (%s)\n", strerror(errno));
+    if(netstack_init(ns)){
       free(ns);
       return NULL;
     }
-    // FIXME
   }
   return ns;
 }
 
 int netstack_destroy(netstack* ns){
   int ret = 0;
-  if(close(ns->fd)){
-    fprintf(stderr, "Error closing %d (%s)\n", ns->fd, strerror(errno));
-  }
+  nl_socket_free(ns->nl);
   free(ns);
   return ret;
 }
