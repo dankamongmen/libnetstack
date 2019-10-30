@@ -254,6 +254,21 @@ viface_cb(const netstack* ns, const void* vni){
   ns->opts.iface_cb(vni, ns->opts.iface_curry);
 }
 
+static inline void
+vaddr_cb(const netstack* ns, const void* vna){
+  ns->opts.addr_cb(vna, ns->opts.addr_curry);
+}
+
+static inline void
+vroute_cb(const netstack* ns, const void* vnr){
+  ns->opts.route_cb(vnr, ns->opts.route_curry);
+}
+
+static inline void
+vneigh_cb(const netstack* ns, const void* vnn){
+  ns->opts.neigh_cb(vnn, ns->opts.neigh_curry);
+}
+
 static int
 msg_handler_internal(struct nl_msg* msg, const netstack* ns){
   struct nlmsghdr* nhdr = nlmsg_hdr(msg);
@@ -289,7 +304,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdrsize = sizeof(*ifa);
         pfxn = vaddr_rta_handler;
         dfxn = vfree_addr;
-        // FIXME cfxn
+        cfxn = vaddr_cb;
         newobj = create_addr();
         break;
       case RTM_NEWROUTE:
@@ -298,7 +313,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdrsize = sizeof(*rt);
         pfxn = vroute_rta_handler;
         dfxn = vfree_route;
-        // FIXME cfxn
+        cfxn = vroute_cb;
         newobj = create_route();
         break;
       case RTM_NEWNEIGH:
@@ -307,7 +322,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdrsize = sizeof(*nd);
         pfxn = vneigh_rta_handler;
         dfxn = vfree_neigh;
-        // FIXME cfxn
+        cfxn = vneigh_cb;
         newobj = create_neigh();
         break;
       default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
