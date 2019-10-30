@@ -272,37 +272,81 @@ vneigh_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen
   return neigh_rta_handler(v1, v2, rta, rlen);
 }
 
+static inline void*
+memdup(const void* v, size_t n){
+  void* ret = malloc(n);
+  if(ret){
+    memcpy(ret, v, n);
+  }
+  return ret;
+}
+
+static inline void*
+rtas_dup(const struct rtattr* rtas, int rlen, void** rta_indexed, size_t rtamax){
+  void* ret = memdup(rtas, rlen);
+  if(ret){
+    memset(rta_indexed, 0, sizeof(*rta_indexed) * rtamax);
+  }
+  return ret;
+}
+
 static netstack_iface*
-create_iface(void){
+create_iface(const struct rtattr* rtas, int rlen){
   netstack_iface* ni;
   ni = malloc(sizeof(*ni));
   memset(ni, 0, sizeof(*ni));
+  ni->rtabuf = rtas_dup(rtas, rlen, ni->rta_indexed,
+                        sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed));
   return ni;
 }
 
+static inline void*
+vcreate_iface(const struct rtattr* rtas, int rlen){
+  return create_iface(rtas, rlen);
+}
+
 static netstack_addr*
-create_addr(void){
+create_addr(const struct rtattr* rtas, int rlen){
   netstack_addr* na;
   na = malloc(sizeof(*na));
   memset(na, 0, sizeof(*na));
+  na->rtabuf = rtas_dup(rtas, rlen, na->rta_indexed,
+                        sizeof(na->rta_indexed) / sizeof(*na->rta_indexed));
   return na;
 }
 
+static inline void*
+vcreate_addr(const struct rtattr* rtas, int rlen){
+  return create_addr(rtas, rlen);
+}
+
 static netstack_route*
-create_route(void){
+create_route(const struct rtattr* rtas, int rlen){
   netstack_route* nr;
   nr = malloc(sizeof(*nr));
   memset(nr, 0, sizeof(*nr));
+  nr->rtabuf = rtas_dup(rtas, rlen, nr->rta_indexed,
+                        sizeof(nr->rta_indexed) / sizeof(*nr->rta_indexed));
   return nr;
 }
 
+static inline void*
+vcreate_route(const struct rtattr* rtas, int rlen){
+  return create_route(rtas, rlen);
+}
+
 static netstack_neigh*
-create_neigh(void){
+create_neigh(const struct rtattr* rtas, int rlen){
   netstack_neigh* nn;
   nn = malloc(sizeof(*nn));
   memset(nn, 0, sizeof(*nn));
+  nn->rtabuf = rtas_dup(rtas, rlen, nn->rta_indexed,
+                        sizeof(nn->rta_indexed) / sizeof(*nn->rta_indexed));
   return nn;
 }
+
+static inline void*
+vcreate_neigh(const struct rtattr* rtas, int rlen){ return create_neigh(rtas, rlen); }
 
 static void free_iface(netstack_iface* ni){ if(ni){ free(ni); } }
 static void free_addr(netstack_addr* na){ if(na){ free(na); } }
@@ -376,12 +420,12 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     const struct ndmsg* nd = NLMSG_DATA(nhdr);
     const void* hdr = NULL; // aliases one of the NLMSG_DATA lvalues above
     size_t hdrsize = 0; // size of leading object (hdr), depends on message type
-    void* newobj = NULL; // type depends on message type, result of create_*()
     // processor for the type. takes the new netstack_* object (newobj), the
     // leading type-dependent object (aliased by hdr), the first RTA, and &rlen.
     bool (*pfxn)(void*, const void*, const struct rtattr*, int*) = NULL;
     void (*dfxn)(void*) = NULL; // destroyer of this type of object
     void (*cfxn)(const netstack*, const void*) = NULL; // user callback
+    void* (*gfxn)(const struct rtattr*, int) = NULL; // constructor
     switch(ntype){
       case RTM_NEWLINK:
         hdr = ifi;
@@ -390,7 +434,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         pfxn = vlink_rta_handler;
         dfxn = vfree_iface;
         cfxn = viface_cb;
-        newobj = create_iface();
+        gfxn = vcreate_iface;
         break;
       case RTM_NEWADDR:
         hdr = ifa;
@@ -399,7 +443,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         pfxn = vaddr_rta_handler;
         dfxn = vfree_addr;
         cfxn = vaddr_cb;
-        newobj = create_addr();
+        gfxn = vcreate_addr;
         break;
       case RTM_NEWROUTE:
         hdr = rt;
@@ -408,7 +452,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         pfxn = vroute_rta_handler;
         dfxn = vfree_route;
         cfxn = vroute_cb;
-        newobj = create_route();
+        gfxn = vcreate_route;
         break;
       case RTM_NEWNEIGH:
         hdr = nd;
@@ -417,15 +461,16 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         pfxn = vneigh_rta_handler;
         dfxn = vfree_neigh;
         cfxn = vneigh_cb;
-        newobj = create_neigh();
+        gfxn = vcreate_neigh;
         break;
       default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
     }
-    if(newobj == NULL){
+    if(hdrsize == 0){
       break;
     }
     // FIXME factor all of this out probably
     int rlen = nlen - NLMSG_LENGTH(hdrsize);
+    void* newobj = gfxn(rta, rlen);
     while(RTA_OK(rta, rlen)){
       if(!pfxn(newobj, hdr, rta, &rlen)){
         break;
