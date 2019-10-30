@@ -19,8 +19,11 @@ typedef struct netstack {
   pthread_t rxtid;
   pthread_t txtid;
   // We can only have one command of the class e.g. DUMP outstanding at a time.
-  // Queue up any others for transmission when possible. -1 == end of queue.
+  // Queue up any others for transmission when possible.
+  // Iff txqueue[dequeueidx] == -1, there are no messages to send.
+  // Iff txqueue[queueidx] >= 0, there is no room to enqueue messages.
   int txqueue[128];
+  int dequeueidx, queueidx;
   // Unset by the txthread, set by the rxthread (and initializer).
   pthread_cond_t txcond;
   pthread_mutex_t txlock;
@@ -41,9 +44,9 @@ netstack_rx_thread(void* vns){
     printf("Got a netlink message!\n"); // FIXME
     // FIXME ensure it matched what we expect?
     ns->clear_to_send = true;
+    pthread_cond_signal(&ns->txcond);
   }
-  fprintf(stderr, "Error receiving from netlink socket (%s)\n",
-          nl_geterror(ret));
+  fprintf(stderr, "Error rxing from netlink socket (%s)\n", nl_geterror(ret));
   // FIXME recover?
   return NULL;
 }
@@ -61,18 +64,19 @@ netstack_tx_thread(void* vns){
   while(true){
     pthread_mutex_lock(&ns->txlock);
     pthread_cleanup_push(tx_cancel_clean, ns);
-    while(!ns->clear_to_send || ns->txqueue[0] == -1){
+    while(!ns->clear_to_send || ns->txqueue[ns->dequeueidx] == -1){
       pthread_cond_wait(&ns->txcond, &ns->txlock);
     }
     ns->clear_to_send = false;
-    int i = 0;
     struct rtgenmsg rt = {
       .rtgen_family = AF_UNSPEC,
     };
-    if(nl_send_simple(ns->nl, ns->txqueue[i], NLM_F_REQUEST|NLM_F_DUMP, &rt, sizeof(rt)) < 0){
+fprintf(stderr, "Sending %d\n", ns->txqueue[ns->dequeueidx]);
+    if(nl_send_simple(ns->nl, ns->txqueue[ns->dequeueidx],
+                      NLM_F_REQUEST|NLM_F_DUMP, &rt, sizeof(rt)) < 0){
       // FIXME do what?
     }
-    ns->txqueue[0] = -1;
+    ns->txqueue[ns->dequeueidx++] = -1;
     pthread_cleanup_pop(0);
     pthread_mutex_unlock(&ns->txlock);
   }
@@ -224,6 +228,8 @@ netstack_init(netstack* ns){
   };
   memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
   ns->txqueue[sizeof(dumpmsgs) / sizeof(*dumpmsgs)] = -1;
+  ns->queueidx = sizeof(dumpmsgs) / sizeof(*dumpmsgs);
+  ns->dequeueidx = 0;
   ns->clear_to_send = true;
   if((ns->nl = nl_socket_alloc()) == NULL){
     return -1;
