@@ -78,105 +78,10 @@ netstack_tx_thread(void* vns){
 }
 
 static bool
-addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
-                 const struct rtattr* rta, int* rlen){
-  memcpy(&na->ifa, ifa, sizeof(*ifa));
-  switch(rta->rta_type){
-    case IFA_UNSPEC:
-    case IFA_ADDRESS:
-    case IFA_LOCAL:
-    case IFA_LABEL:
-    case IFA_BROADCAST:
-    case IFA_ANYCAST:
-    case IFA_CACHEINFO:
-    case IFA_MULTICAST:
-    case IFA_FLAGS:
-    case IFA_RT_PRIORITY:
-    case IFA_TARGET_NETNSID:
-      // FIXME
-      break;
-    default:
-      fprintf(stderr, "Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
-      return false;
-  }
-  return true;
-}
-
-static bool
-route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
-                  const struct rtattr* rta, int* rlen){
-  memcpy(&nr->rt, rt, sizeof(*rt));
-  switch(rta->rta_type){
-    case RTA_UNSPEC:
-    case RTA_DST:
-    case RTA_SRC:
-    case RTA_IIF:
-    case RTA_OIF:
-    case RTA_GATEWAY:
-    case RTA_PRIORITY:
-    case RTA_PREFSRC:
-    case RTA_METRICS:
-    case RTA_MULTIPATH:
-    case RTA_PROTOINFO:
-    case RTA_FLOW:
-    case RTA_CACHEINFO:
-    case RTA_SESSION:
-    case RTA_MP_ALGO:
-    case RTA_TABLE:
-    case RTA_MARK:
-    case RTA_MFC_STATS:
-    case RTA_VIA:
-    case RTA_NEWDST:
-    case RTA_PREF:
-    case RTA_ENCAP_TYPE:
-    case RTA_ENCAP:
-    case RTA_EXPIRES:
-    case RTA_PAD:
-    case RTA_UID:
-    case RTA_TTL_PROPAGATE:
-    case RTA_IP_PROTO:
-    case RTA_SPORT:
-    case RTA_DPORT:
-    case RTA_NH_ID:
-      // FIXME
-      break;
-    default:
-      fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
-      return false;
-  }
-  return true;
-}
-
-static bool
-neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
-                  const struct rtattr* rta, int* rlen){
-  memcpy(&nn->nd, nd, sizeof(*nd));
-  switch(rta->rta_type){
-    case NDA_UNSPEC:
-    case NDA_DST:
-    case NDA_LLADDR:
-    case NDA_CACHEINFO:
-    case NDA_PROBES:
-    case NDA_VLAN:
-    case NDA_PORT:
-    case NDA_VNI:
-    case NDA_IFINDEX:
-    case NDA_MASTER:
-    case NDA_LINK_NETNSID:
-    case NDA_SRC_VNI:
-    case NDA_PROTOCOL:
-      // FIXME
-      break;
-    default:
-      fprintf(stderr, "Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
-      return false;
-  }
-  return true;
-}
-
-static bool
-link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
-                 const struct rtattr* rta, int* rlen){
+iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
+                  size_t rtaoff, int* rlen){
+  const struct rtattr* rta = (const struct rtattr*)
+    (((const char*)(ni->rtabuf)) + rtaoff);
   memcpy(&ni->ifi, ifi, sizeof(*ifi));
   switch(rta->rta_type){
     case IFLA_ADDRESS:
@@ -186,9 +91,11 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
       // FIXME copy L2 bcast address
       break;
     case IFLA_IFNAME:{
-      size_t nlen = strnlen(RTA_DATA(rta), sizeof(ni->name));
-      if(nlen == sizeof(ni->name)){
-        fprintf(stderr, "Invalid name [%s]\n", (const char*)(RTA_DATA(rta)));
+      size_t max = sizeof(ni->name) > RTA_PAYLOAD(rta) ?
+                    RTA_PAYLOAD(rta) : sizeof(ni->name);
+      size_t nlen = strnlen(RTA_DATA(rta), max);
+      if(nlen == max){
+        fprintf(stderr, "Invalid name [%.*s]\n", (int)max, (const char*)(RTA_DATA(rta)));
         return false;
       }
       memcpy(ni->name, RTA_DATA(rta), nlen + 1);
@@ -243,6 +150,9 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_NEW_IFINDEX:
     case IFLA_MIN_MTU:
     case IFLA_MAX_MTU:
+      if(ni->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
+        ni->rta_indexed[rta->rta_type] = ((char*)ni->rtabuf) + rtaoff;
+      }
       break;
     default:
       fprintf(stderr, "Unknown IFLA_RTA type %d len %d\n", rta->rta_type, *rlen);
@@ -251,25 +161,128 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
   return true;
 }
 
+static bool
+addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
+                  size_t rtaoff, int* rlen){
+  const struct rtattr* rta = (const struct rtattr*)
+    (((const char*)(na->rtabuf)) + rtaoff);
+  memcpy(&na->ifa, ifa, sizeof(*ifa));
+  switch(rta->rta_type){
+    case IFA_UNSPEC:
+    case IFA_ADDRESS:
+    case IFA_LOCAL:
+    case IFA_LABEL:
+    case IFA_BROADCAST:
+    case IFA_ANYCAST:
+    case IFA_CACHEINFO:
+    case IFA_MULTICAST:
+    case IFA_FLAGS:
+    case IFA_RT_PRIORITY:
+    case IFA_TARGET_NETNSID:
+      // FIXME
+      break;
+    default:
+      fprintf(stderr, "Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
+      return false;
+  }
+  return true;
+}
+
+static bool
+route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
+                  size_t rtaoff, int* rlen){
+  const struct rtattr* rta = (const struct rtattr*)
+    (((const char*)(nr->rtabuf)) + rtaoff);
+  memcpy(&nr->rt, rt, sizeof(*rt));
+  switch(rta->rta_type){
+    case RTA_UNSPEC:
+    case RTA_DST:
+    case RTA_SRC:
+    case RTA_IIF:
+    case RTA_OIF:
+    case RTA_GATEWAY:
+    case RTA_PRIORITY:
+    case RTA_PREFSRC:
+    case RTA_METRICS:
+    case RTA_MULTIPATH:
+    case RTA_PROTOINFO:
+    case RTA_FLOW:
+    case RTA_CACHEINFO:
+    case RTA_SESSION:
+    case RTA_MP_ALGO:
+    case RTA_TABLE:
+    case RTA_MARK:
+    case RTA_MFC_STATS:
+    case RTA_VIA:
+    case RTA_NEWDST:
+    case RTA_PREF:
+    case RTA_ENCAP_TYPE:
+    case RTA_ENCAP:
+    case RTA_EXPIRES:
+    case RTA_PAD:
+    case RTA_UID:
+    case RTA_TTL_PROPAGATE:
+    case RTA_IP_PROTO:
+    case RTA_SPORT:
+    case RTA_DPORT:
+    case RTA_NH_ID:
+      // FIXME
+      break;
+    default:
+      fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
+      return false;
+  }
+  return true;
+}
+
+static bool
+neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
+                  size_t rtaoff, int* rlen){
+  const struct rtattr* rta = (const struct rtattr*)
+    (((const char*)(nn->rtabuf)) + rtaoff);
+  memcpy(&nn->nd, nd, sizeof(*nd));
+  switch(rta->rta_type){
+    case NDA_UNSPEC:
+    case NDA_DST:
+    case NDA_LLADDR:
+    case NDA_CACHEINFO:
+    case NDA_PROBES:
+    case NDA_VLAN:
+    case NDA_PORT:
+    case NDA_VNI:
+    case NDA_IFINDEX:
+    case NDA_MASTER:
+    case NDA_LINK_NETNSID:
+    case NDA_SRC_VNI:
+    case NDA_PROTOCOL:
+      // FIXME
+      break;
+    default:
+      fprintf(stderr, "Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
+      return false;
+  }
+  return true;
+}
+
 // FIXME xmacro all of these out
 static bool
-vlink_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
-  return link_rta_handler(v1, v2, rta, rlen);
+viface_rta_handler(void* v1, const void* v2, size_t rtaoff, int* rlen){
+  return iface_rta_handler(v1, v2, rtaoff, rlen);
 }
 
 static bool
-vaddr_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
-  return addr_rta_handler(v1, v2, rta, rlen);
+vaddr_rta_handler(void* v1, const void* v2, size_t rtaoff, int* rlen){
+  return addr_rta_handler(v1, v2, rtaoff, rlen);
 }
 
 static bool
-vroute_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
-  return route_rta_handler(v1, v2, rta, rlen);
+vroute_rta_handler(void* v1, const void* v2, size_t rtaoff, int* rlen){
+  return route_rta_handler(v1, v2, rtaoff, rlen);
 }
 
 static bool
-vneigh_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
-  return neigh_rta_handler(v1, v2, rta, rlen);
+vneigh_rta_handler(void* v1, const void* v2, size_t rtaoff, int* rlen){
+  return neigh_rta_handler(v1, v2, rtaoff, rlen);
 }
 
 static inline void*
@@ -420,9 +433,10 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     const struct ndmsg* nd = NLMSG_DATA(nhdr);
     const void* hdr = NULL; // aliases one of the NLMSG_DATA lvalues above
     size_t hdrsize = 0; // size of leading object (hdr), depends on message type
-    // processor for the type. takes the new netstack_* object (newobj), the
-    // leading type-dependent object (aliased by hdr), the first RTA, and &rlen.
-    bool (*pfxn)(void*, const void*, const struct rtattr*, int*) = NULL;
+    // processor for rtattr objects in this type regime. takes the newly-created
+    // netstack_* object (newobj), the leading type-dependent object (aliased
+    // by hdr), the offset of the RTA being handled, and &rlen.
+    bool (*pfxn)(void*, const void*, size_t, int*) = NULL;
     void (*dfxn)(void*) = NULL; // destroyer of this type of object
     void (*cfxn)(const netstack*, const void*) = NULL; // user callback
     void* (*gfxn)(const struct rtattr*, int) = NULL; // constructor
@@ -431,7 +445,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdr = ifi;
         rta = IFLA_RTA(ifi);
         hdrsize = sizeof(*ifi);
-        pfxn = vlink_rta_handler;
+        pfxn = viface_rta_handler;
         dfxn = vfree_iface;
         cfxn = viface_cb;
         gfxn = vcreate_iface;
@@ -468,14 +482,15 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     if(hdrsize == 0){
       break;
     }
+    const struct rtattr* riter = rta;
     // FIXME factor all of this out probably
     int rlen = nlen - NLMSG_LENGTH(hdrsize);
     void* newobj = gfxn(rta, rlen);
-    while(RTA_OK(rta, rlen)){
-      if(!pfxn(newobj, hdr, rta, &rlen)){
+    while(RTA_OK(riter, rlen)){
+      if(!pfxn(newobj, hdr, (char*)riter - (char*)rta, &rlen)){
         break;
       }
-      rta = RTA_NEXT(rta, rlen);
+      riter = RTA_NEXT(riter, rlen);
     }
     if(rlen){
       dfxn(newobj);
