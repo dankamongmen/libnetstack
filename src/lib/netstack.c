@@ -37,7 +37,6 @@ netstack_rx_thread(void* vns){
   netstack* ns = vns;
   int ret;
   while((ret = nl_recvmsgs_default(ns->nl)) == 0){
-    printf("Got a netlink message!\n"); // FIXME
     // FIXME ensure it matched what we expect?
     ns->clear_to_send = true;
     pthread_cond_signal(&ns->txcond);
@@ -240,6 +239,21 @@ vnetstack_print_iface(const netstack_iface* ni, void* vf){
   netstack_print_iface(ni, vf);
 }
 
+static void
+vnetstack_print_addr(const netstack_addr* na, void* vf){
+  netstack_print_addr(na, vf);
+}
+
+static void
+vnetstack_print_route(const netstack_route* nr, void* vf){
+  netstack_print_route(nr, vf);
+}
+
+static void
+vnetstack_print_neigh(const netstack_neigh* nn, void* vf){
+  netstack_print_neigh(nn, vf);
+}
+
 #ifndef NDA_RTA
 #define NDA_RTA(r) \
  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ndmsg))))
@@ -383,6 +397,15 @@ validate_options(const netstack_opts* nopts){
   if(nopts->iface_curry && !nopts->iface_cb){
     return false;
   }
+  if(nopts->addr_curry && !nopts->addr_cb){
+    return false;
+  }
+  if(nopts->route_curry && !nopts->route_cb){
+    return false;
+  }
+  if(nopts->neigh_curry && !nopts->neigh_cb){
+    return false;
+  }
   return true;
 }
 
@@ -456,6 +479,18 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     ns->opts.iface_cb = vnetstack_print_iface;
     ns->opts.iface_curry = stdout;
   }
+  if(ns->opts.addr_cb == NULL){
+    ns->opts.addr_cb = vnetstack_print_addr;
+    ns->opts.addr_curry = stdout;
+  }
+  if(ns->opts.route_cb == NULL){
+    ns->opts.route_cb = vnetstack_print_route;
+    ns->opts.route_curry = stdout;
+  }
+  if(ns->opts.neigh_cb == NULL){
+    ns->opts.neigh_cb = vnetstack_print_neigh;
+    ns->opts.neigh_curry = stdout;
+  }
   return 0;
 }
 
@@ -487,8 +522,37 @@ int netstack_destroy(netstack* ns){
   return ret;
 }
 
+static inline
+const char* family_to_str(unsigned family){
+  switch(family){
+    case AF_INET: return "IPv6";
+    case AF_INET6: return "IPv4";
+    default: return "unknown family";
+  }
+}
+
 int netstack_print_iface(const netstack_iface* ni, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "[%s]\n", ni->name); // FIXME
+  ret = fprintf(out, "%03d [%s]\n", ni->ifi.ifi_index, ni->name); // FIXME
+  return ret;
+}
+
+int netstack_print_addr(const netstack_addr* na, FILE* out){
+  int ret = 0;
+  ret = fprintf(out, "%03d [%s]\n", na->ifa.ifa_index,
+                family_to_str(na->ifa.ifa_family)); // FIXME
+  return ret;
+}
+
+int netstack_print_route(const netstack_route* nr, FILE* out){
+  int ret = 0;
+  ret = fprintf(out, "[%s]\n", family_to_str(nr->rt.rtm_family)); // FIXME
+  return ret;
+}
+
+int netstack_print_neigh(const netstack_neigh* nn, FILE* out){
+  int ret = 0;
+  ret = fprintf(out, "%03d [%s]\n", nn->nd.ndm_ifindex,
+                family_to_str(nn->nd.ndm_family)); // FIXME
   return ret;
 }

@@ -75,6 +75,9 @@ struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 
 int netstack_print_iface(const netstack_iface* ni, FILE* out);
+int netstack_print_addr(const netstack_addr* na, FILE* out);
+int netstack_print_route(const netstack_route* nr, FILE* out);
+int netstack_print_neigh(const netstack_neigh* nn, FILE* out);
 
 #ifdef __cplusplus
 }
