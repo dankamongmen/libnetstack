@@ -37,23 +37,37 @@ struct netstack;
 typedef struct netstack_iface {
   struct ifinfomsg ifi;
   char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
-  void* rtabuf;        // copied directly from message
+  struct rtattr* rtabuf; // copied directly from message
+  size_t rtabuflen; // number of bytes copied to rtabuf
   // set up before invoking the user callback, these allow for o(1) index into
   // rtabuf by attr type. NULL if that attr wasn't in the message.
   const struct rtattr* rta_indexed[__IFLA_MAX];
-  bool unknown_attrs;  // are there attrs >= __IFLA_MAX?
+  bool unknown_attrs; // are there attrs >= __IFLA_MAX?
 } netstack_iface;
 
 static inline const struct rtattr *
-netstack_iface_attr(const netstack_iface* ni, unsigned attridx){
-  if(attridx < sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed)){
+netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
+  while(RTA_OK(rtabuf, rlen)){
+    if(rtabuf->rta_type == rtype){
+      return rtabuf;
+    }
+    rtabuf = RTA_NEXT(rtabuf, rlen);
+  }
+  return NULL;
+}
+
+static inline const struct rtattr *
+netstack_iface_attr(const netstack_iface* ni, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed)){
     return ni->rta_indexed[attridx];
   }
   if(!ni->unknown_attrs){
     return NULL;
   }
-  // FIXME do o(n) check
-  return NULL;
+  return netstack_extract_rta_attr(ni->rtabuf, ni->rtabuflen, attridx);
 }
 
 // name must be at least IFNAMSIZ bytes, or better yet sizeof(ni->name). this
@@ -91,60 +105,68 @@ netstack_iface_mtu(const netstack_iface* ni){
 
 typedef struct netstack_addr {
   struct ifaddrmsg ifa;
-  void* rtabuf;        // copied directly from message
+  struct rtattr* rtabuf;        // copied directly from message
+  size_t rtabuflen;
   const struct rtattr* rta_indexed[__IFA_MAX];
   bool unknown_attrs;  // are there attrs >= __IFA_MAX?
 } netstack_addr;
 
 static inline const struct rtattr*
-netstack_addr_attr(const netstack_addr* na, unsigned attridx){
-  if(attridx < sizeof(na->rta_indexed) / sizeof(*na->rta_indexed)){
+netstack_addr_attr(const netstack_addr* na, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(na->rta_indexed) / sizeof(*na->rta_indexed)){
     return na->rta_indexed[attridx];
   }
   if(!na->unknown_attrs){
     return NULL;
   }
-  // FIXME do o(n) check
-  return NULL;
+  return netstack_extract_rta_attr(na->rtabuf, na->rtabuflen, attridx);
 }
 
 typedef struct netstack_route {
   struct rtmsg rt;
-  void* rtabuf;        // copied directly from message
+  struct rtattr* rtabuf;        // copied directly from message
+  size_t rtabuflen;
   const struct rtattr* rta_indexed[__RTA_MAX];
   bool unknown_attrs;  // are there attrs >= __RTA_MAX?
 } netstack_route;
 
 static inline const void*
-netstack_route_attr(const netstack_route* nr, unsigned attridx){
-  if(attridx < sizeof(nr->rta_indexed) / sizeof(*nr->rta_indexed)){
+netstack_route_attr(const netstack_route* nr, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(nr->rta_indexed) / sizeof(*nr->rta_indexed)){
     return nr->rta_indexed[attridx];
   }
   if(!nr->unknown_attrs){
     return NULL;
   }
-  // FIXME do o(n) check
-  return NULL;
+  return netstack_extract_rta_attr(nr->rtabuf, nr->rtabuflen, attridx);
 }
 
 typedef struct netstack_neigh {
   struct ndmsg nd;
-  // FIXME
-  void* rtabuf;        // copied directly from message
+  struct rtattr* rtabuf;        // copied directly from message
+  size_t rtabuflen;
   const struct rtattr* rta_indexed[__NDA_MAX];
   bool unknown_attrs;  // are there attrs >= __NDA_MAX?
 } netstack_neigh;
 
 static inline const void*
-netstack_neigh_attr(const netstack_neigh* nn, unsigned attridx){
-  if(attridx < sizeof(nn->rta_indexed) / sizeof(*nn->rta_indexed)){
+netstack_neigh_attr(const netstack_neigh* nn, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(nn->rta_indexed) / sizeof(*nn->rta_indexed)){
     return nn->rta_indexed[attridx];
   }
   if(!nn->unknown_attrs){
     return NULL;
   }
-  // FIXME do o(n) check
-  return NULL;
+  return netstack_extract_rta_attr(nn->rtabuf, nn->rtabuflen, attridx);
 }
 
 // Callback types for various events. Even though routes, addresses etc. can be
