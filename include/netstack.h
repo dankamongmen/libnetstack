@@ -240,13 +240,19 @@ netstack_neigh_attr(const netstack_neigh* nn, int attridx){
   return netstack_extract_rta_attr(nn->rtabuf, nn->rtabuflen, attridx);
 }
 
+typedef enum {
+  NETSTACK_NEW, // an object that is new to us (new primary key, index usually)
+  NETSTACK_MOD, // an object we already knew about, and is still around
+  NETSTACK_DEL, // an object that is going away
+} netstack_event_e;
+
 // Callback types for various events. Even though routes, addresses etc. can be
 // reached through a netstack_iface object, they each get their own type of
 // callback.
-typedef void (*netstack_iface_cb)(const netstack_iface*, void*);
-typedef void (*netstack_addr_cb)(const netstack_addr*, void*);
-typedef void (*netstack_route_cb)(const netstack_route*, void*);
-typedef void (*netstack_neigh_cb)(const netstack_neigh*, void*);
+typedef void (*netstack_iface_cb)(const netstack_iface*, netstack_event_e, void*);
+typedef void (*netstack_addr_cb)(const netstack_addr*, netstack_event_e, void*);
+typedef void (*netstack_route_cb)(const netstack_route*, netstack_event_e, void*);
+typedef void (*netstack_neigh_cb)(const netstack_neigh*, netstack_event_e, void*);
 
 // The default for all members is false or the appropriate zero representation.
 typedef struct netstack_opts {

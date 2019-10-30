@@ -407,22 +407,22 @@ static inline void vfree_route(void* vr){ free_route(vr); }
 static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 
 static void
-vnetstack_print_iface(const netstack_iface* ni, void* vf){
+vnetstack_print_iface(const netstack_iface* ni, netstack_event_e etype, void* vf){
   netstack_print_iface(ni, vf);
 }
 
 static void
-vnetstack_print_addr(const netstack_addr* na, void* vf){
+vnetstack_print_addr(const netstack_addr* na, netstack_event_e etype, void* vf){
   netstack_print_addr(na, vf);
 }
 
 static void
-vnetstack_print_route(const netstack_route* nr, void* vf){
+vnetstack_print_route(const netstack_route* nr, netstack_event_e etype, void* vf){
   netstack_print_route(nr, vf);
 }
 
 static void
-vnetstack_print_neigh(const netstack_neigh* nn, void* vf){
+vnetstack_print_neigh(const netstack_neigh* nn, netstack_event_e etype, void* vf){
   netstack_print_neigh(nn, vf);
 }
 
@@ -437,22 +437,22 @@ vnetstack_print_neigh(const netstack_neigh* nn, void* vf){
 
 static inline void
 viface_cb(const netstack* ns, const void* vni){
-  ns->opts.iface_cb(vni, ns->opts.iface_curry);
+  ns->opts.iface_cb(vni, NETSTACK_NEW, ns->opts.iface_curry);
 }
 
 static inline void
 vaddr_cb(const netstack* ns, const void* vna){
-  ns->opts.addr_cb(vna, ns->opts.addr_curry);
+  ns->opts.addr_cb(vna, NETSTACK_NEW, ns->opts.addr_curry);
 }
 
 static inline void
 vroute_cb(const netstack* ns, const void* vnr){
-  ns->opts.route_cb(vnr, ns->opts.route_curry);
+  ns->opts.route_cb(vnr, NETSTACK_NEW, ns->opts.route_curry);
 }
 
 static inline void
 vneigh_cb(const netstack* ns, const void* vnn){
-  ns->opts.neigh_cb(vnn, ns->opts.neigh_curry);
+  ns->opts.neigh_cb(vnn, NETSTACK_NEW, ns->opts.neigh_curry);
 }
 
 static int
@@ -592,8 +592,8 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   static const int dumpmsgs[] = {
     RTM_GETLINK,
     RTM_GETADDR,
-    RTM_GETROUTE,
     RTM_GETNEIGH,
+    RTM_GETROUTE,
   };
   memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
   ns->txqueue[sizeof(dumpmsgs) / sizeof(*dumpmsgs)] = -1;
@@ -740,22 +740,23 @@ int netstack_print_iface(const netstack_iface* ni, FILE* out){
   if(llrta){
     llstr = l2addrstr(ni->ifi.ifi_type, RTA_PAYLOAD(llrta), RTA_DATA(llrta));
   }
-  ret = fprintf(out, "%03d [%*s] %s mtu: %5u\n", ni->ifi.ifi_index,
+  ret = fprintf(out, "%3d [%*s] %s%cmtu %u\n", ni->ifi.ifi_index,
                 (int)sizeof(ni->name) - 1, ni->name, // FIXME
-                llstr ? llstr : "", netstack_iface_mtu(ni));
+                llstr ? llstr : "", llstr ? ' ' : '\0',
+                netstack_iface_mtu(ni));
   return ret;
 }
 
 int netstack_print_addr(const netstack_addr* na, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "%03d [%s]\n", na->ifa.ifa_index,
+  ret = fprintf(out, "%3d [%s]\n", na->ifa.ifa_index,
                 family_to_str(na->ifa.ifa_family)); // FIXME
   return ret;
 }
 
 int netstack_print_route(const netstack_route* nr, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "[%s] %s %s %d %d in: %d out: %d\n",
+  ret = fprintf(out, "[%s] %s %s metric %d prio %d in %d out %d\n",
                 family_to_str(nr->rt.rtm_family),
                 netstack_route_typestr(nr), netstack_route_protstr(nr),
                 netstack_route_metric(nr), netstack_route_priority(nr),
@@ -765,7 +766,7 @@ int netstack_print_route(const netstack_route* nr, FILE* out){
 
 int netstack_print_neigh(const netstack_neigh* nn, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "%03d [%s]\n", nn->nd.ndm_ifindex,
+  ret = fprintf(out, "%3d [%s]\n", nn->nd.ndm_ifindex,
                 family_to_str(nn->nd.ndm_family)); // FIXME
   return ret;
 }
