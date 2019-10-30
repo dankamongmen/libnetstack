@@ -86,7 +86,6 @@ netstack_tx_thread(void* vns){
     struct rtgenmsg rt = {
       .rtgen_family = AF_UNSPEC,
     };
-fprintf(stderr, "Sending %d\n", ns->txqueue[ns->dequeueidx]);
     if(nl_send_simple(ns->nl, ns->txqueue[ns->dequeueidx],
                       NLM_F_REQUEST|NLM_F_DUMP, &rt, sizeof(rt)) < 0){
       // FIXME do what?
@@ -279,12 +278,9 @@ static void vfree_neigh(void* vn){ free_neigh(vn); }
  NLMSG_PAYLOAD((n), sizeof(struct ndmsg))
 #endif
 
-// FIXME disable cancellation in callbacks
 static int
-msg_handler(struct nl_msg* msg, void* vns){
-  const netstack* ns = vns; (void)ns; // FIXME
+msg_handler_internal(struct nl_msg* msg, const netstack* ns){
   struct nlmsghdr* nhdr = nlmsg_hdr(msg);
-  fprintf(stderr, "nl %db msg type %d\n", nhdr->nlmsg_len, nhdr->nlmsg_type);
   int nlen = nhdr->nlmsg_len;
   while(nlmsg_ok(nhdr, nlen)){
     const int ntype = nhdr->nlmsg_type;
@@ -354,6 +350,15 @@ msg_handler(struct nl_msg* msg, void* vns){
     return NL_SKIP;
   }
   return NL_OK;
+}
+
+static int
+msg_handler(struct nl_msg* msg, void* vns){
+  int oldcancelstate, ret;
+  pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldcancelstate);
+  ret = msg_handler_internal(msg, vns);
+  pthread_setcancelstate(oldcancelstate, &oldcancelstate);
+  return ret;
 }
 
 static int
