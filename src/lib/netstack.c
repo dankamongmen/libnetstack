@@ -81,7 +81,10 @@ static bool
 addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
                  const struct rtattr* rta, int* rlen){
   memcpy(&na->ifa, ifa, sizeof(*ifa));
+  switch(rta->rta_type){
   // FIXME
+    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, *rlen); return false;
+  }
   return true;
 }
 
@@ -89,7 +92,10 @@ static bool
 route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
                   const struct rtattr* rta, int* rlen){
   memcpy(&nr->rt, rt, sizeof(*rt));
+  switch(rta->rta_type){
   // FIXME
+    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, *rlen); return false;
+  }
   return true;
 }
 
@@ -97,7 +103,10 @@ static bool
 neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
                   const struct rtattr* rta, int* rlen){
   memcpy(&nn->nd, nd, sizeof(*nd));
+  switch(rta->rta_type){
   // FIXME
+    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, *rlen); return false;
+  }
   return true;
 }
 
@@ -348,7 +357,6 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     int rlen = nlen - NLMSG_LENGTH(hdrsize);
     while(RTA_OK(rta, rlen)){
       if(!pfxn(newobj, hdr, rta, &rlen)){
-        dfxn(newobj);
         break;
       }
       rta = RTA_NEXT(rta, rlen);
