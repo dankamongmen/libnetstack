@@ -16,10 +16,10 @@ int main(void){
   if(ns == NULL){
     return EXIT_FAILURE;
   }
-	if(pthread_sigmask(SIG_BLOCK, &sigset, NULL)){
-		fprintf(stderr, "Couldn't block signals (%s)\n", strerror(errno));
-		return EXIT_FAILURE;
-	}
+  if(pthread_sigmask(SIG_BLOCK, &sigset, NULL)){
+    fprintf(stderr, "Couldn't block signals (%s)\n", strerror(errno));
+    return EXIT_FAILURE;
+  }
   int sig;
   printf("Waiting on signal...\n");
   if(sigwait(&sigset, &sig)){
