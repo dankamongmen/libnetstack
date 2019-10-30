@@ -28,6 +28,7 @@ typedef struct netstack {
   pthread_cond_t txcond;
   pthread_mutex_t txlock;
   atomic_bool clear_to_send;
+  netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
 
 // Sits on blocking nl_recvmsgs()
@@ -363,7 +364,7 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
 }
 
 static int
-netstack_init(netstack* ns){
+netstack_init(netstack* ns, const netstack_opts* opts){
   // Get an initial dump of all entities, then updates via subscription.
   static const int dumpmsgs[] = {
     RTM_GETLINK,
@@ -420,6 +421,7 @@ netstack_init(netstack* ns){
     nl_socket_free(ns->nl);
     return -1;
   }
+  memcpy(&ns->opts, opts, sizeof(*opts));
   return 0;
 }
 
@@ -432,7 +434,7 @@ netstack* netstack_create(const netstack_opts* nopts){
   }
   netstack* ns = malloc(sizeof(*ns));
   if(ns){
-    if(netstack_init(ns)){
+    if(netstack_init(ns, nopts)){
       free(ns);
       return NULL;
     }
