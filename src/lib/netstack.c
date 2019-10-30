@@ -373,10 +373,33 @@ create_neigh(const struct rtattr* rtas, int rlen){
 static inline void*
 vcreate_neigh(const struct rtattr* rtas, int rlen){ return create_neigh(rtas, rlen); }
 
-static void free_iface(netstack_iface* ni){ if(ni){ free(ni); } }
-static void free_addr(netstack_addr* na){ if(na){ free(na); } }
-static void free_route(netstack_route* nr){ if(nr){ free(nr); } }
-static void free_neigh(netstack_neigh* nn){ if(nn){ free(nn); } }
+static void free_iface(netstack_iface* ni){
+  if(ni){
+    free(ni->rtabuf);
+    free(ni);
+  }
+}
+
+static void free_addr(netstack_addr* na){
+  if(na){
+    free(na->rtabuf);
+    free(na);
+  }
+}
+
+static void free_route(netstack_route* nr){
+  if(nr){
+    free(nr->rtabuf);
+    free(nr);
+  }
+}
+
+static void free_neigh(netstack_neigh* nn){
+  if(nn){
+    free(nn->rtabuf);
+    free(nn);
+  }
+}
 
 static inline void vfree_iface(void* vni){ free_iface(vni); }
 static inline void vfree_addr(void* va){ free_addr(va); }
