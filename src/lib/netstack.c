@@ -124,7 +124,7 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_IFNAME:{
       size_t nlen = strnlen(RTA_DATA(rta), sizeof(ni->name));
       if(nlen == sizeof(ni->name)){
-        fprintf(stderr, "Invalid name [%s]\n", RTA_DATA(rta));
+        fprintf(stderr, "Invalid name [%s]\n", (const char*)(RTA_DATA(rta)));
         return false;
       }
       memcpy(ni->name, RTA_DATA(rta), nlen + 1);
@@ -477,7 +477,8 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     return -1;
   }
   if(pthread_create(&ns->txtid, NULL, netstack_tx_thread, ns)){
-    pthread_cancel(ns->rxtid) && pthread_join(ns->txtid, NULL);
+    pthread_cancel(ns->rxtid);
+    pthread_join(ns->txtid, NULL);
     pthread_cond_destroy(&ns->txcond);
     pthread_mutex_destroy(&ns->txlock);
     nl_socket_free(ns->nl);
