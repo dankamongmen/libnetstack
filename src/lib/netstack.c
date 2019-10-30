@@ -673,7 +673,8 @@ const char* family_to_str(unsigned family){
 
 int netstack_print_iface(const netstack_iface* ni, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "%03d [%s]\n", ni->ifi.ifi_index, ni->name); // FIXME
+  ret = fprintf(out, "%03d [%*s]\n", ni->ifi.ifi_index, (int)sizeof(ni->name),
+                ni->name); // FIXME
   return ret;
 }
 
