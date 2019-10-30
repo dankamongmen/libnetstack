@@ -408,21 +408,25 @@ static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 
 static void
 vnetstack_print_iface(const netstack_iface* ni, netstack_event_e etype, void* vf){
+  (void)etype;
   netstack_print_iface(ni, vf);
 }
 
 static void
 vnetstack_print_addr(const netstack_addr* na, netstack_event_e etype, void* vf){
+  (void)etype;
   netstack_print_addr(na, vf);
 }
 
 static void
 vnetstack_print_route(const netstack_route* nr, netstack_event_e etype, void* vf){
+  (void)etype;
   netstack_print_route(nr, vf);
 }
 
 static void
 vnetstack_print_neigh(const netstack_neigh* nn, netstack_event_e etype, void* vf){
+  (void)etype;
   netstack_print_neigh(nn, vf);
 }
 
