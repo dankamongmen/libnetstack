@@ -93,9 +93,12 @@ netstack_iface_lladdr(const netstack_iface* ni, void* buf, size_t* len){
 
 static inline uint32_t
 netstack_iface_mtu(const netstack_iface* ni){
-  uint32_t ret;
   const struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
+  uint32_t ret;
   if(attr){
+    if(RTA_PAYLOAD(attr) != sizeof(ret)){
+      return 0;
+    }
     memcpy(&ret, RTA_DATA(attr), RTA_PAYLOAD(attr));
   }else{
     ret = 0;
@@ -145,6 +148,31 @@ netstack_route_attr(const netstack_route* nr, int attridx){
     return NULL;
   }
   return netstack_extract_rta_attr(nr->rtabuf, nr->rtabuflen, attridx);
+}
+
+// Routing tables are indexed 0-255
+static inline unsigned
+netstack_route_table(const netstack_route* nr){
+  return nr->rt.rtm_table;
+}
+
+static inline const char*
+netstack_route_typestr(const netstack_route* nr){
+  switch(nr->rt.rtm_type){
+    case RTN_UNSPEC: return "none";
+    case RTN_UNICAST: return "unicast";
+    case RTN_LOCAL: return "local";
+    case RTN_BROADCAST: return "broadcast";
+    case RTN_ANYCAST: return "anycast";
+    case RTN_MULTICAST: return "multicast";
+    case RTN_BLACKHOLE: return "blackhole";
+    case RTN_UNREACHABLE: return "unreachable";
+    case RTN_PROHIBIT: return "prohibit";
+    case RTN_THROW: return "throw";
+    case RTN_NAT: return "nat";
+    case RTN_XRESOLVE: return "xresolve";
+    default: return "";
+  }
 }
 
 typedef struct netstack_neigh {

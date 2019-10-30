@@ -755,7 +755,8 @@ int netstack_print_addr(const netstack_addr* na, FILE* out){
 
 int netstack_print_route(const netstack_route* nr, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "[%s]\n", family_to_str(nr->rt.rtm_family)); // FIXME
+  ret = fprintf(out, "[%s] %s\n", family_to_str(nr->rt.rtm_family),
+                netstack_route_typestr(nr));
   return ret;
 }
 
