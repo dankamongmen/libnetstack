@@ -107,18 +107,37 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
                   const struct rtattr* rta, int* rlen){
   memcpy(&nr->rt, rt, sizeof(*rt));
   switch(rta->rta_type){
-    case RTN_UNSPEC:
-    case RTN_UNICAST:
-    case RTN_LOCAL:
-    case RTN_BROADCAST:
-    case RTN_ANYCAST:
-    case RTN_MULTICAST:
-    case RTN_BLACKHOLE:
-    case RTN_UNREACHABLE:
-    case RTN_PROHIBIT:
-    case RTN_THROW:
-    case RTN_NAT:
-    case RTN_XRESOLVE:
+    case RTA_UNSPEC:
+    case RTA_DST:
+    case RTA_SRC:
+    case RTA_IIF:
+    case RTA_OIF:
+    case RTA_GATEWAY:
+    case RTA_PRIORITY:
+    case RTA_PREFSRC:
+    case RTA_METRICS:
+    case RTA_MULTIPATH:
+    case RTA_PROTOINFO:
+    case RTA_FLOW:
+    case RTA_CACHEINFO:
+    case RTA_SESSION:
+    case RTA_MP_ALGO:
+    case RTA_TABLE:
+    case RTA_MARK:
+    case RTA_MFC_STATS:
+    case RTA_VIA:
+    case RTA_NEWDST:
+    case RTA_PREF:
+    case RTA_ENCAP_TYPE:
+    case RTA_ENCAP:
+    case RTA_EXPIRES:
+    case RTA_PAD:
+    case RTA_UID:
+    case RTA_TTL_PROPAGATE:
+    case RTA_IP_PROTO:
+    case RTA_SPORT:
+    case RTA_DPORT:
+    case RTA_NH_ID:
       // FIXME
       break;
     default:
