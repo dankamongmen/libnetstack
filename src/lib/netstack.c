@@ -121,10 +121,15 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_BROADCAST:
       // FIXME copy L2 bcast address
       break;
-    case IFLA_IFNAME:
-      strcpy(ni->name, RTA_DATA(rta)); // FIXME rigourize
+    case IFLA_IFNAME:{
+      size_t nlen = strnlen(RTA_DATA(rta), sizeof(ni->name));
+      if(nlen == sizeof(ni->name)){
+        fprintf(stderr, "Invalid name [%s]\n", RTA_DATA(rta));
+        return false;
+      }
+      memcpy(ni->name, RTA_DATA(rta), nlen + 1);
       break;
-    case IFLA_MTU:
+    }case IFLA_MTU:
       // FIXME copy mtu
       break;
     case IFLA_LINK: case IFLA_QDISC: case IFLA_STATS:
