@@ -35,7 +35,7 @@ struct netstack;
 // against which we were compiled, and do an o(n) check otherwise.
 typedef struct netstack_iface {
   struct ifinfomsg ifi;
-  char name[IFNAMSIZ]; // NUL-terminated
+  char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
   void* rtabuf;        // copied directly from message
   void* rta_indexed[__IFLA_MAX];
   // FIXME
@@ -48,6 +48,14 @@ netstack_iface_attr(const netstack_iface* ni, unsigned attridx){
   }
   // FIXME do o(n) check
   return NULL;
+}
+
+// name must be at least IFNAMSIZ bytes, or better yet sizeof(ni->name). this
+// has been validated as safe to copy into char[IFNAMSIZ] (i.e. you'll
+// definitely get a NUL terminator), unlike netstack_iface_attr(IFLA_NAME).
+static inline char*
+netstack_iface_name(const netstack_iface* ni, char* name){
+  return strcpy(name, ni->name);
 }
 
 typedef struct netstack_addr {
