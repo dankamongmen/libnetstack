@@ -683,11 +683,43 @@ const char* family_to_str(unsigned family){
   }
 }
 
+// Each byte becomes two ASCII characters + separator or nul
+static inline size_t
+hwaddrstrlen(size_t addrlen){
+  return ((addrlen) == 0 ? 1 : (addrlen == 1) ? 2 : (addrlen) * 3);
+}
+
+// buf must be at least slen bytes
+void* l2ntop(const void *hwaddr, size_t slen, size_t alen, char* buf){
+  if(alen){
+    unsigned idx;
+    for(idx = 0 ; idx < alen ; ++idx){
+      snprintf(buf + idx * 3, slen - idx * 3, "%02x:",
+               ((const unsigned char *)hwaddr)[idx]);
+    }
+  }else{
+    buf[0] = '\0';
+  }
+  return buf;
+}
+
+char* l2addrstr(int l2type, size_t len, const void* addr){
+  (void)l2type; // FIXME need for quirks
+  size_t slen = hwaddrstrlen(len);
+  char* ret = malloc(slen);
+  return l2ntop(addr, slen, len, ret);
+}
+
 int netstack_print_iface(const netstack_iface* ni, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "%03d [%*s] mtu: %5u\n", ni->ifi.ifi_index,
+  const struct rtattr* llrta = netstack_iface_attr(ni, IFLA_ADDRESS);
+  char* llstr = NULL;
+  if(llrta){
+    llstr = l2addrstr(ni->ifi.ifi_type, RTA_PAYLOAD(llrta), RTA_DATA(llrta));
+  }
+  ret = fprintf(out, "%03d [%*s] %s mtu: %5u\n", ni->ifi.ifi_index,
                 (int)sizeof(ni->name) - 1, ni->name, // FIXME
-                netstack_iface_mtu(ni));
+                llstr ? llstr : "", netstack_iface_mtu(ni));
   return ret;
 }
 
