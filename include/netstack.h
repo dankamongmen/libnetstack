@@ -136,7 +136,7 @@ typedef struct netstack_route {
   bool unknown_attrs;  // are there attrs >= __RTA_MAX?
 } netstack_route;
 
-static inline const void*
+static inline const struct rtattr*
 netstack_route_attr(const netstack_route* nr, int attridx){
   if(attridx < 0){
     return NULL;
@@ -187,6 +187,37 @@ netstack_route_protstr(const netstack_route* nr){
   }
 }
 
+static inline int
+netstack_route_intattr(const netstack_route* nr, int attr){
+  const struct rtattr* rt = netstack_route_attr(nr, attr);
+  int ret = 0;
+  if(rt && RTA_PAYLOAD(rt) == sizeof(ret)){
+    memcpy(&ret, RTA_DATA(rt), RTA_PAYLOAD(rt));
+  }
+  return ret;
+}
+
+
+static inline int
+netstack_route_iif(const netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_IIF);
+}
+
+static inline int
+netstack_route_oif(const netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_OIF);
+}
+
+static inline int
+netstack_route_priority(const netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_PRIORITY);
+}
+
+static inline int
+netstack_route_metric(const netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_METRICS);
+}
+
 typedef struct netstack_neigh {
   struct ndmsg nd;
   struct rtattr* rtabuf;        // copied directly from message
@@ -195,7 +226,7 @@ typedef struct netstack_neigh {
   bool unknown_attrs;  // are there attrs >= __NDA_MAX?
 } netstack_neigh;
 
-static inline const void*
+static inline const struct rtattr*
 netstack_neigh_attr(const netstack_neigh* nn, int attridx){
   if(attridx < 0){
     return NULL;
