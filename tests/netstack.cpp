@@ -13,3 +13,11 @@ TEST(Netstack, CreateDefaultOpts){
   ASSERT_NE(nullptr, ns);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
+
+TEST(Netstack, RefuseCurryWithoutCB){
+  netstack_opts nopts;
+  memset(&nopts, 0, sizeof(nopts));
+  nopts.iface_curry = &nopts;
+  struct netstack* ns = netstack_create(&nopts);
+  ASSERT_EQ(nullptr, ns);
+}

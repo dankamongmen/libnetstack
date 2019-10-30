@@ -40,8 +40,10 @@ typedef struct netstack_opts {
   // refrain from launching a thread to handle netlink events in the
   // background. caller will need to handle nonblocking I/O.
   bool no_thread;
-  // if a given callback is NULL, the default will be used (print to stdout)
+  // if a given callback is NULL, the default will be used (print to stdout).
+  // a given curry may be non-NULL only if the corresponding cb is also NULL.
   netstack_iface_cb iface_cb;
+  void* iface_curry;
 } netstack_opts;
 
 // Opts may be NULL, in which case the defaults will be used.

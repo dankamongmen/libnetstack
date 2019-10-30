@@ -258,6 +258,10 @@ static void vfree_addr(void* va){ free_addr(va); }
 static void vfree_route(void* vr){ free_route(vr); }
 static void vfree_neigh(void* vn){ free_neigh(vn); }
 
+int vnetstack_print_iface(const netstack_iface* ni, void* vf){
+  return netstack_print_iface(ni, vf);
+}
+
 #ifndef NDA_RTA
 #define NDA_RTA(r) \
  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ndmsg))))
@@ -363,8 +367,26 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
   return NL_OK; // FIXME
 }
 
+static bool
+validate_options(const netstack_opts* nopts){
+  if(nopts == NULL){
+    return true;
+  }
+  if(nopts->no_thread){
+    fprintf(stderr, "Threadless mode is not yet supported\n"); // FIXME
+    return false;
+  }
+  if(nopts->iface_curry && !nopts->iface_cb){
+    return false;
+  }
+  return true;
+}
+
 static int
 netstack_init(netstack* ns, const netstack_opts* opts){
+  if(!validate_options(opts)){
+    return -1;
+  }
   // Get an initial dump of all entities, then updates via subscription.
   static const int dumpmsgs[] = {
     RTM_GETLINK,
@@ -421,17 +443,19 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     nl_socket_free(ns->nl);
     return -1;
   }
-  memcpy(&ns->opts, opts, sizeof(*opts));
+  if(opts){
+    memcpy(&ns->opts, opts, sizeof(*opts));
+  }else{
+    memset(&ns->opts, 0, sizeof(ns->opts));
+  }
+  if(ns->opts.iface_cb == NULL){
+    ns->opts.iface_cb = vnetstack_print_iface;
+    ns->opts.iface_curry = stdout;
+  }
   return 0;
 }
 
 netstack* netstack_create(const netstack_opts* nopts){
-  if(nopts){
-    if(nopts->no_thread){
-      fprintf(stderr, "Threadless mode is not yet supported\n"); // FIXME
-      return NULL;
-    }
-  }
   netstack* ns = malloc(sizeof(*ns));
   if(ns){
     if(netstack_init(ns, nopts)){
