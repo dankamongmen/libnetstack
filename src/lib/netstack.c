@@ -4,13 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <stdatomic.h>
+#include <sys/socket.h>
 #include <netlink/msg.h>
 #include <linux/if_link.h>
 #include <linux/netlink.h>
 #include <netlink/socket.h>
 #include <netlink/netlink.h>
 #include <linux/rtnetlink.h>
-#include <sys/socket.h>
 #include "netstack.h"
 
 typedef struct netstack {
@@ -20,8 +21,10 @@ typedef struct netstack {
   // We can only have one command of the class e.g. DUMP outstanding at a time.
   // Queue up any others for transmission when possible. -1 == end of queue.
   int txqueue[128];
+  // Unset by the txthread, set by the rxthread (and initializer).
   pthread_cond_t txcond;
   pthread_mutex_t txlock;
+  atomic_bool clear_to_send;
 } netstack;
 
 typedef struct netstack_iface {
@@ -36,6 +39,8 @@ netstack_rx_thread(void* vns){
   int ret;
   while((ret = nl_recvmsgs_default(ns->nl)) == 0){
     printf("Got a netlink message!\n"); // FIXME
+    // FIXME ensure it matched what we expect?
+    ns->clear_to_send = true;
   }
   fprintf(stderr, "Error receiving from netlink socket (%s)\n",
           nl_geterror(ret));
@@ -53,23 +58,24 @@ tx_cancel_clean(void* vns){
 static void*
 netstack_tx_thread(void* vns){
   netstack* ns = vns;
-  pthread_mutex_lock(&ns->txlock);
-  while(ns->txqueue[0] == -1){
+  while(true){
+    pthread_mutex_lock(&ns->txlock);
     pthread_cleanup_push(tx_cancel_clean, ns);
-    pthread_cond_wait(&ns->txcond, &ns->txlock);
-    pthread_cleanup_pop(0);
-  }
-  int i = 0;
-  do{
+    while(!ns->clear_to_send || ns->txqueue[0] == -1){
+      pthread_cond_wait(&ns->txcond, &ns->txlock);
+    }
+    ns->clear_to_send = false;
+    int i = 0;
     struct rtgenmsg rt = {
       .rtgen_family = AF_UNSPEC,
     };
     if(nl_send_simple(ns->nl, ns->txqueue[i], NLM_F_REQUEST|NLM_F_DUMP, &rt, sizeof(rt)) < 0){
       // FIXME do what?
     }
-  }while(ns->txqueue[++i] != -1);
-  ns->txqueue[0] = -1;
-  pthread_mutex_unlock(&ns->txlock);
+    ns->txqueue[0] = -1;
+    pthread_cleanup_pop(0);
+    pthread_mutex_unlock(&ns->txlock);
+  }
   return NULL;
 }
 
@@ -207,30 +213,18 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
   return NL_OK; // FIXME
 }
 
-// Get an initial dump of all entities. We'll receive updates via subscription.
-static int
-netstack_dump(netstack* ns){
-  struct rtgenmsg rt = {
-    .rtgen_family = AF_UNSPEC,
-  };
-  const int dumpmsgs[] = {
-    RTM_GETLINK,
-    RTM_GETADDR,
-    /*RTM_GETROUTE,
-    RTM_GETNEIGH,*/
-  };
-  size_t i;
-  for(i = 0 ; i < sizeof(dumpmsgs) / sizeof(*dumpmsgs) ; ++i){
-    if(nl_send_simple(ns->nl, dumpmsgs[i], NLM_F_REQUEST | NLM_F_DUMP, &rt, sizeof(rt)) < 0){
-      return -1;
-    }
-  }
-  return 0;
-}
-
 static int
 netstack_init(netstack* ns){
-  ns->txqueue[0] = -1;
+  // Get an initial dump of all entities, then updates via subscription.
+  static const int dumpmsgs[] = {
+    RTM_GETLINK,
+    RTM_GETADDR,
+    RTM_GETROUTE,
+    RTM_GETNEIGH,
+  };
+  memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
+  ns->txqueue[sizeof(dumpmsgs) / sizeof(*dumpmsgs)] = -1;
+  ns->clear_to_send = true;
   if((ns->nl = nl_socket_alloc()) == NULL){
     return -1;
   }
@@ -289,10 +283,6 @@ netstack* netstack_create(const netstack_opts* nopts){
   if(ns){
     if(netstack_init(ns)){
       free(ns);
-      return NULL;
-    }
-    if(netstack_dump(ns)){
-      netstack_destroy(ns);
       return NULL;
     }
   }
