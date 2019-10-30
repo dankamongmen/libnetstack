@@ -153,7 +153,7 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
   }
   if(ni->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
     ni->rta_indexed[rta->rta_type] =
-      (struct rtattr*)(((char*)ni->rtabuf) + rtaoff);
+      (const struct rtattr*)(((const char*)ni->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -184,7 +184,7 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
   }
   if(na->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
     na->rta_indexed[rta->rta_type] =
-      (struct rtattr*)(((char*)na->rtabuf) + rtaoff);
+      (const struct rtattr*)(((const char*)na->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -236,7 +236,7 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
   }
   if(nr->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
     nr->rta_indexed[rta->rta_type] =
-      (struct rtattr*)(((char*)nr->rtabuf) + rtaoff);
+      (const struct rtattr*)(((const char*)nr->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -270,7 +270,7 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
   }
   if(nn->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
     nn->rta_indexed[rta->rta_type] =
-      (struct rtattr*)(((char*)nn->rtabuf) + rtaoff);
+      (const struct rtattr*)(((const char*)nn->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -306,8 +306,8 @@ memdup(const void* v, size_t n){
 }
 
 static inline struct rtattr*
-rtas_dup(const struct rtattr* rtas, int rlen, struct rtattr* rta_indexed[],
-         size_t rtamax){
+rtas_dup(const struct rtattr* rtas, int rlen,
+         const struct rtattr* rta_indexed[], size_t rtamax){
   struct rtattr* ret = memdup(rtas, rlen);
   if(ret){
     memset(rta_indexed, 0, sizeof(*rta_indexed) * rtamax);
