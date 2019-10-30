@@ -33,20 +33,21 @@ typedef struct netstack {
 typedef struct netstack_iface {
   char name[IFNAMSIZ];
   // FIXME
+  struct ifinfomsg ifi;
 } netstack_iface;
 
 typedef struct netstack_addr {
-  unsigned char family; // only v4 or v6
+  struct ifaddrmsg ifa;
   // FIXME
 } netstack_addr;
 
 typedef struct netstack_route {
-  unsigned char family; // only v4 or v6
+  struct rtmsg rt;
   // FIXME
 } netstack_route;
 
 typedef struct netstack_neigh {
-  unsigned char family; // only v4 or v6
+  struct ndmsg nd;
   // FIXME
 } netstack_neigh;
 
@@ -100,6 +101,7 @@ netstack_tx_thread(void* vns){
 static bool
 addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
                  const struct rtattr* rta, int* rlen){
+  memcpy(&na->ifa, ifa, sizeof(*ifa));
   // FIXME
   return true;
 }
@@ -107,6 +109,7 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
 static bool
 route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
                   const struct rtattr* rta, int* rlen){
+  memcpy(&nr->rt, rt, sizeof(*rt));
   // FIXME
   return true;
 }
@@ -114,6 +117,7 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
 static bool
 neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
                   const struct rtattr* rta, int* rlen){
+  memcpy(&nn->nd, nd, sizeof(*nd));
   // FIXME
   return true;
 }
@@ -121,6 +125,7 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
 static bool
 link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
                  const struct rtattr* rta, int* rlen){
+  memcpy(&ni->ifi, ifi, sizeof(*ifi));
   switch(rta->rta_type){
     case IFLA_ADDRESS:
       // FIXME copy L2 ucast address
