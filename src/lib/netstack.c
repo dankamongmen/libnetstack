@@ -225,41 +225,19 @@ create_neigh(void){
   return nn;
 }
 
-static void
-free_iface(netstack_iface* ni){
-  if(ni){
-    free(ni);
-  }
-}
+static void free_iface(netstack_iface* ni){ if(ni){ free(ni); } }
+static void free_addr(netstack_addr* na){ if(na){ free(na); } }
+static void free_route(netstack_route* nr){ if(nr){ free(nr); } }
+static void free_neigh(netstack_neigh* nn){ if(nn){ free(nn); } }
+
+static inline void vfree_iface(void* vni){ free_iface(vni); }
+static inline void vfree_addr(void* va){ free_addr(va); }
+static inline void vfree_route(void* vr){ free_route(vr); }
+static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 
 static void
-free_addr(netstack_addr* na){
-  if(na){
-    free(na);
-  }
-}
-
-static void
-free_route(netstack_route* nr){
-  if(nr){
-    free(nr);
-  }
-}
-
-static void
-free_neigh(netstack_neigh* nn){
-  if(nn){
-    free(nn);
-  }
-}
-
-static void vfree_iface(void* vni){ free_iface(vni); }
-static void vfree_addr(void* va){ free_addr(va); }
-static void vfree_route(void* vr){ free_route(vr); }
-static void vfree_neigh(void* vn){ free_neigh(vn); }
-
-int vnetstack_print_iface(const netstack_iface* ni, void* vf){
-  return netstack_print_iface(ni, vf);
+vnetstack_print_iface(const netstack_iface* ni, void* vf){
+  netstack_print_iface(ni, vf);
 }
 
 #ifndef NDA_RTA
@@ -270,6 +248,11 @@ int vnetstack_print_iface(const netstack_iface* ni, void* vf){
 #define NDA_PAYLOAD(n) \
  NLMSG_PAYLOAD((n), sizeof(struct ndmsg))
 #endif
+
+static inline void
+viface_cb(const netstack* ns, const void* vni){
+  ns->opts.iface_cb(vni, ns->opts.iface_curry);
+}
 
 static int
 msg_handler_internal(struct nl_msg* msg, const netstack* ns){
@@ -289,6 +272,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     // leading type-dependent object (aliased by hdr), the first RTA, and &rlen.
     bool (*pfxn)(void*, const void*, const struct rtattr*, int*) = NULL;
     void (*dfxn)(void*) = NULL; // destroyer of this type of object
+    void (*cfxn)(const netstack*, const void*) = NULL; // user callback
     switch(ntype){
       case RTM_NEWLINK:
         hdr = ifi;
@@ -296,6 +280,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdrsize = sizeof(*ifi);
         pfxn = vlink_rta_handler;
         dfxn = vfree_iface;
+        cfxn = viface_cb;
         newobj = create_iface();
         break;
       case RTM_NEWADDR:
@@ -304,6 +289,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdrsize = sizeof(*ifa);
         pfxn = vaddr_rta_handler;
         dfxn = vfree_addr;
+        // FIXME cfxn
         newobj = create_addr();
         break;
       case RTM_NEWROUTE:
@@ -312,6 +298,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdrsize = sizeof(*rt);
         pfxn = vroute_rta_handler;
         dfxn = vfree_route;
+        // FIXME cfxn
         newobj = create_route();
         break;
       case RTM_NEWNEIGH:
@@ -320,6 +307,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         hdrsize = sizeof(*nd);
         pfxn = vneigh_rta_handler;
         dfxn = vfree_neigh;
+        // FIXME cfxn
         newobj = create_neigh();
         break;
       default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
@@ -341,7 +329,8 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
       fprintf(stderr, "Netlink attr was invalid, %db left\n", rlen);
       return NL_SKIP;
     }
-    dfxn(newobj); // FIXME do something with newobj
+    cfxn(ns, newobj);
+    dfxn(newobj); // FIXME keep it cached
     nhdr = nlmsg_next(nhdr, &nlen);
   }
   if(nlen){
