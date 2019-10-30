@@ -2,6 +2,7 @@
 #define LIBNETSTACK_NETSTACK
 
 #include <net/if.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <linux/rtnetlink.h>
 
@@ -37,11 +38,11 @@ typedef struct netstack_iface {
   struct ifinfomsg ifi;
   char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
   void* rtabuf;        // copied directly from message
-  void* rta_indexed[__IFLA_MAX];
+  struct rtattr* rta_indexed[__IFLA_MAX];
   bool unknown_attrs;  // are there attrs >= __IFLA_MAX?
 } netstack_iface;
 
-static inline void*
+static inline struct rtattr *
 netstack_iface_attr(const netstack_iface* ni, unsigned attridx){
   if(attridx < sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed)){
     return ni->rta_indexed[attridx];
@@ -61,14 +62,26 @@ netstack_iface_name(const netstack_iface* ni, char* name){
   return strcpy(name, ni->name);
 }
 
+static inline uint32_t
+netstack_iface_mtu(const netstack_iface* ni){
+  uint32_t ret;
+  struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
+  if(attr){
+    memcpy(&ret, RTA_DATA(attr), RTA_PAYLOAD(attr));
+  }else{
+    ret = 0;
+  }
+  return ret;
+}
+
 typedef struct netstack_addr {
   struct ifaddrmsg ifa;
   void* rtabuf;        // copied directly from message
-  void* rta_indexed[__IFA_MAX];
+  struct rtattr* rta_indexed[__IFA_MAX];
   bool unknown_attrs;  // are there attrs >= __IFA_MAX?
 } netstack_addr;
 
-static inline void*
+static inline const struct rtattr*
 netstack_addr_attr(const netstack_addr* na, unsigned attridx){
   if(attridx < sizeof(na->rta_indexed) / sizeof(*na->rta_indexed)){
     return na->rta_indexed[attridx];
@@ -83,7 +96,7 @@ netstack_addr_attr(const netstack_addr* na, unsigned attridx){
 typedef struct netstack_route {
   struct rtmsg rt;
   void* rtabuf;        // copied directly from message
-  void* rta_indexed[__RTA_MAX];
+  struct rtattr* rta_indexed[__RTA_MAX];
   bool unknown_attrs;  // are there attrs >= __RTA_MAX?
 } netstack_route;
 
@@ -103,7 +116,7 @@ typedef struct netstack_neigh {
   struct ndmsg nd;
   // FIXME
   void* rtabuf;        // copied directly from message
-  void* rta_indexed[__NDA_MAX];
+  struct rtattr* rta_indexed[__NDA_MAX];
   bool unknown_attrs;  // are there attrs >= __NDA_MAX?
 } netstack_neigh;
 
