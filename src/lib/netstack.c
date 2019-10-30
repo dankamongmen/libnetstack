@@ -82,8 +82,22 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
                  const struct rtattr* rta, int* rlen){
   memcpy(&na->ifa, ifa, sizeof(*ifa));
   switch(rta->rta_type){
-  // FIXME
-    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, *rlen); return false;
+    case IFA_UNSPEC:
+    case IFA_ADDRESS:
+    case IFA_LOCAL:
+    case IFA_LABEL:
+    case IFA_BROADCAST:
+    case IFA_ANYCAST:
+    case IFA_CACHEINFO:
+    case IFA_MULTICAST:
+    case IFA_FLAGS:
+    case IFA_RT_PRIORITY:
+    case IFA_TARGET_NETNSID:
+      // FIXME
+      break;
+    default:
+      fprintf(stderr, "Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
+      return false;
   }
   return true;
 }
@@ -93,8 +107,23 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
                   const struct rtattr* rta, int* rlen){
   memcpy(&nr->rt, rt, sizeof(*rt));
   switch(rta->rta_type){
-  // FIXME
-    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, *rlen); return false;
+    case RTN_UNSPEC:
+    case RTN_UNICAST:
+    case RTN_LOCAL:
+    case RTN_BROADCAST:
+    case RTN_ANYCAST:
+    case RTN_MULTICAST:
+    case RTN_BLACKHOLE:
+    case RTN_UNREACHABLE:
+    case RTN_PROHIBIT:
+    case RTN_THROW:
+    case RTN_NAT:
+    case RTN_XRESOLVE:
+      // FIXME
+      break;
+    default:
+      fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
+      return false;
   }
   return true;
 }
@@ -104,8 +133,24 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
                   const struct rtattr* rta, int* rlen){
   memcpy(&nn->nd, nd, sizeof(*nd));
   switch(rta->rta_type){
-  // FIXME
-    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, *rlen); return false;
+    case NDA_UNSPEC:
+    case NDA_DST:
+    case NDA_LLADDR:
+    case NDA_CACHEINFO:
+    case NDA_PROBES:
+    case NDA_VLAN:
+    case NDA_PORT:
+    case NDA_VNI:
+    case NDA_IFINDEX:
+    case NDA_MASTER:
+    case NDA_LINK_NETNSID:
+    case NDA_SRC_VNI:
+    case NDA_PROTOCOL:
+      // FIXME
+      break;
+    default:
+      fprintf(stderr, "Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
+      return false;
   }
   return true;
 }
@@ -138,8 +183,8 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_COST:
     case IFLA_PRIORITY:
     case IFLA_MASTER:
-    case IFLA_WIRELESS:		/* Wireless Extension event - see wireless.h */
-    case IFLA_PROTINFO:		/* Protocol specific information for a link */
+    case IFLA_WIRELESS:    /* Wireless Extension event - see wireless.h */
+    case IFLA_PROTINFO:    /* Protocol specific information for a link */
     case IFLA_TXQLEN:
     case IFLA_MAP:
     case IFLA_WEIGHT:
@@ -148,16 +193,16 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_LINKINFO:
     case IFLA_NET_NS_PID:
     case IFLA_IFALIAS:
-    case IFLA_NUM_VF:		/* Number of VFs if device is SR-IOV PF */
+    case IFLA_NUM_VF:    /* Number of VFs if device is SR-IOV PF */
     case IFLA_VFINFO_LIST:
     case IFLA_STATS64:
     case IFLA_VF_PORTS:
     case IFLA_PORT_SELF:
     case IFLA_AF_SPEC:
-    case IFLA_GROUP:		/* Group the device belongs to */
+    case IFLA_GROUP:    /* Group the device belongs to */
     case IFLA_NET_NS_FD:
-    case IFLA_EXT_MASK:		/* Extended info mask: VFs: etc */
-    case IFLA_PROMISCUITY:	/* Promiscuity count: > 0 means acts PROMISC */
+    case IFLA_EXT_MASK:    /* Extended info mask: VFs: etc */
+    case IFLA_PROMISCUITY:  /* Promiscuity count: > 0 means acts PROMISC */
     case IFLA_NUM_TX_QUEUES:
     case IFLA_NUM_RX_QUEUES:
     case IFLA_CARRIER:
@@ -180,7 +225,9 @@ link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_MIN_MTU:
     case IFLA_MAX_MTU:
       break;
-    default: fprintf(stderr, "Unknown RTA type %d len %d\n", rta->rta_type, *rlen); return false;
+    default:
+      fprintf(stderr, "Unknown IFLA_RTA type %d len %d\n", rta->rta_type, *rlen);
+      return false;
   }
   return true;
 }
