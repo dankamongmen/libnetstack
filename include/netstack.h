@@ -38,13 +38,16 @@ typedef struct netstack_iface {
   char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
   void* rtabuf;        // copied directly from message
   void* rta_indexed[__IFLA_MAX];
-  // FIXME
+  bool unknown_attrs;  // are there attrs >= __IFLA_MAX?
 } netstack_iface;
 
 static inline void*
 netstack_iface_attr(const netstack_iface* ni, unsigned attridx){
   if(attridx < sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed)){
     return ni->rta_indexed[attridx];
+  }
+  if(!ni->unknown_attrs){
+    return NULL;
   }
   // FIXME do o(n) check
   return NULL;
@@ -62,7 +65,7 @@ typedef struct netstack_addr {
   struct ifaddrmsg ifa;
   void* rtabuf;        // copied directly from message
   void* rta_indexed[__IFA_MAX];
-  // FIXME
+  bool unknown_attrs;  // are there attrs >= __IFA_MAX?
 } netstack_addr;
 
 static inline void*
@@ -70,21 +73,27 @@ netstack_addr_attr(const netstack_addr* na, unsigned attridx){
   if(attridx < sizeof(na->rta_indexed) / sizeof(*na->rta_indexed)){
     return na->rta_indexed[attridx];
   }
+  if(!na->unknown_attrs){
+    return NULL;
+  }
   // FIXME do o(n) check
   return NULL;
 }
 
 typedef struct netstack_route {
   struct rtmsg rt;
-  // FIXME
   void* rtabuf;        // copied directly from message
   void* rta_indexed[__RTA_MAX];
+  bool unknown_attrs;  // are there attrs >= __RTA_MAX?
 } netstack_route;
 
 static inline void*
 netstack_route_attr(const netstack_route* nr, unsigned attridx){
   if(attridx < sizeof(nr->rta_indexed) / sizeof(*nr->rta_indexed)){
     return nr->rta_indexed[attridx];
+  }
+  if(!nr->unknown_attrs){
+    return NULL;
   }
   // FIXME do o(n) check
   return NULL;
@@ -95,12 +104,16 @@ typedef struct netstack_neigh {
   // FIXME
   void* rtabuf;        // copied directly from message
   void* rta_indexed[__NDA_MAX];
+  bool unknown_attrs;  // are there attrs >= __NDA_MAX?
 } netstack_neigh;
 
 static inline void*
 netstack_neigh_attr(const netstack_neigh* nn, unsigned attridx){
   if(attridx < sizeof(nn->rta_indexed) / sizeof(*nn->rta_indexed)){
     return nn->rta_indexed[attridx];
+  }
+  if(!nn->unknown_attrs){
+    return NULL;
   }
   // FIXME do o(n) check
   return NULL;
