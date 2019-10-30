@@ -3,6 +3,7 @@
 
 #include <net/if.h>
 #include <stdbool.h>
+#include <linux/rtnetlink.h>
 
 #ifdef __cplusplus
 extern "C" {
