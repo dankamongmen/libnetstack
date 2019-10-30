@@ -84,12 +84,6 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     (((const char*)(ni->rtabuf)) + rtaoff);
   memcpy(&ni->ifi, ifi, sizeof(*ifi));
   switch(rta->rta_type){
-    case IFLA_ADDRESS:
-      // FIXME copy L2 ucast address
-      break;
-    case IFLA_BROADCAST:
-      // FIXME copy L2 bcast address
-      break;
     case IFLA_IFNAME:{
       size_t max = sizeof(ni->name) > RTA_PAYLOAD(rta) ?
                     RTA_PAYLOAD(rta) : sizeof(ni->name);
@@ -100,17 +94,18 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
       }
       memcpy(ni->name, RTA_DATA(rta), nlen + 1);
       break;
-    }case IFLA_MTU:
-      // FIXME copy mtu
-      break;
-    case IFLA_LINK: case IFLA_QDISC: case IFLA_STATS:
-      // FIXME
-      break;
+    }
+    case IFLA_ADDRESS:
+    case IFLA_BROADCAST:
+    case IFLA_LINK:
+    case IFLA_QDISC:
+    case IFLA_STATS:
+    case IFLA_MTU:
     case IFLA_COST:
     case IFLA_PRIORITY:
     case IFLA_MASTER:
-    case IFLA_WIRELESS:    /* Wireless Extension event - see wireless.h */
-    case IFLA_PROTINFO:    /* Protocol specific information for a link */
+    case IFLA_WIRELESS:
+    case IFLA_PROTINFO:
     case IFLA_TXQLEN:
     case IFLA_MAP:
     case IFLA_WEIGHT:
@@ -119,16 +114,16 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_LINKINFO:
     case IFLA_NET_NS_PID:
     case IFLA_IFALIAS:
-    case IFLA_NUM_VF:    /* Number of VFs if device is SR-IOV PF */
+    case IFLA_NUM_VF:
     case IFLA_VFINFO_LIST:
     case IFLA_STATS64:
     case IFLA_VF_PORTS:
     case IFLA_PORT_SELF:
     case IFLA_AF_SPEC:
-    case IFLA_GROUP:    /* Group the device belongs to */
+    case IFLA_GROUP:
     case IFLA_NET_NS_FD:
-    case IFLA_EXT_MASK:    /* Extended info mask: VFs: etc */
-    case IFLA_PROMISCUITY:  /* Promiscuity count: > 0 means acts PROMISC */
+    case IFLA_EXT_MASK:
+    case IFLA_PROMISCUITY:
     case IFLA_NUM_TX_QUEUES:
     case IFLA_NUM_RX_QUEUES:
     case IFLA_CARRIER:
@@ -156,7 +151,7 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
       break;
     default:
       fprintf(stderr, "Unknown IFLA_RTA type %d len %d\n", rta->rta_type, *rlen);
-      return false;
+      ni->unknown_attrs = true;
   }
   return true;
 }
@@ -183,7 +178,7 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
       break;
     default:
       fprintf(stderr, "Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
-      return false;
+      na->unknown_attrs = true;
   }
   return true;
 }
@@ -230,7 +225,7 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
       break;
     default:
       fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
-      return false;
+      nr->unknown_attrs = true;
   }
   return true;
 }
@@ -259,7 +254,7 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
       break;
     default:
       fprintf(stderr, "Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
-      return false;
+      nn->unknown_attrs = true;
   }
   return true;
 }
@@ -673,8 +668,8 @@ const char* family_to_str(unsigned family){
 
 int netstack_print_iface(const netstack_iface* ni, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "%03d [%*s]\n", ni->ifi.ifi_index, (int)sizeof(ni->name),
-                ni->name); // FIXME
+  ret = fprintf(out, "%03d [%*s]\n", ni->ifi.ifi_index,
+                (int)sizeof(ni->name) - 1, ni->name); // FIXME
   return ret;
 }
 
