@@ -20,7 +20,6 @@ set_target_properties(netstack PROPERTIES
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR}
 )
-
 target_include_directories(netstack PRIVATE ${NL3_INCLUDE_DIR})
 target_link_libraries(netstack
   PRIVATE
@@ -29,6 +28,26 @@ target_link_libraries(netstack
 	  Threads::Threads
 )
 target_compile_options(netstack PRIVATE
+  ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
+  -Wall -Wextra -W
+)
+
+add_library(netstack-static STATIC ${LIBSRCS})
+target_include_directories(netstack-static PRIVATE include)
+set_target_properties(netstack-static PROPERTIES
+  PUBLIC_HEADER "include/netstack.h"
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+  OUTPUT_NAME netstack
+)
+target_include_directories(netstack-static PRIVATE ${NL3_INCLUDE_DIR})
+target_link_libraries(netstack-static
+  PRIVATE
+    ${NL3_LIBRARIES}
+  INTERFACE
+	  Threads::Threads
+)
+target_compile_options(netstack-static PRIVATE
   ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
   -Wall -Wextra -W
 )
@@ -70,6 +89,7 @@ write_basic_package_version_file(
   COMPATIBILITY SameMajorVersion
 )
 
+# FIXME i think we can replace this with an install(EXPORT)?
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/libnetstackConfig.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/libnetstackConfigVersion.cmake
@@ -81,8 +101,10 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
 )
 
-install(TARGETS netstack-demo DESTINATION bin)
-install(TARGETS netstack
+install(TARGETS netstack netstack-demo netstack-static
+  RUNTIME
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT Runtime
   LIBRARY
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     COMPONENT Libraries
@@ -90,4 +112,7 @@ install(TARGETS netstack
   PUBLIC_HEADER
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     COMPONENT Development
+  ARCHIVE
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT Libraries
 )
