@@ -38,11 +38,13 @@ typedef struct netstack_iface {
   struct ifinfomsg ifi;
   char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
   void* rtabuf;        // copied directly from message
-  struct rtattr* rta_indexed[__IFLA_MAX];
+  // set up before invoking the user callback, these allow for o(1) index into
+  // rtabuf by attr type. NULL if that attr wasn't in the message.
+  const struct rtattr* rta_indexed[__IFLA_MAX];
   bool unknown_attrs;  // are there attrs >= __IFLA_MAX?
 } netstack_iface;
 
-static inline struct rtattr *
+static inline const struct rtattr *
 netstack_iface_attr(const netstack_iface* ni, unsigned attridx){
   if(attridx < sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed)){
     return ni->rta_indexed[attridx];
@@ -65,7 +67,7 @@ netstack_iface_name(const netstack_iface* ni, char* name){
 static inline uint32_t
 netstack_iface_mtu(const netstack_iface* ni){
   uint32_t ret;
-  struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
+  const struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
   if(attr){
     memcpy(&ret, RTA_DATA(attr), RTA_PAYLOAD(attr));
   }else{
@@ -77,7 +79,7 @@ netstack_iface_mtu(const netstack_iface* ni){
 typedef struct netstack_addr {
   struct ifaddrmsg ifa;
   void* rtabuf;        // copied directly from message
-  struct rtattr* rta_indexed[__IFA_MAX];
+  const struct rtattr* rta_indexed[__IFA_MAX];
   bool unknown_attrs;  // are there attrs >= __IFA_MAX?
 } netstack_addr;
 
@@ -96,11 +98,11 @@ netstack_addr_attr(const netstack_addr* na, unsigned attridx){
 typedef struct netstack_route {
   struct rtmsg rt;
   void* rtabuf;        // copied directly from message
-  struct rtattr* rta_indexed[__RTA_MAX];
+  const struct rtattr* rta_indexed[__RTA_MAX];
   bool unknown_attrs;  // are there attrs >= __RTA_MAX?
 } netstack_route;
 
-static inline void*
+static inline const void*
 netstack_route_attr(const netstack_route* nr, unsigned attridx){
   if(attridx < sizeof(nr->rta_indexed) / sizeof(*nr->rta_indexed)){
     return nr->rta_indexed[attridx];
@@ -116,11 +118,11 @@ typedef struct netstack_neigh {
   struct ndmsg nd;
   // FIXME
   void* rtabuf;        // copied directly from message
-  struct rtattr* rta_indexed[__NDA_MAX];
+  const struct rtattr* rta_indexed[__NDA_MAX];
   bool unknown_attrs;  // are there attrs >= __NDA_MAX?
 } netstack_neigh;
 
-static inline void*
+static inline const void*
 netstack_neigh_attr(const netstack_neigh* nn, unsigned attridx){
   if(attridx < sizeof(nn->rta_indexed) / sizeof(*nn->rta_indexed)){
     return nn->rta_indexed[attridx];
