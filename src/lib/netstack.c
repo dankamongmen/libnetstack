@@ -98,25 +98,29 @@ netstack_tx_thread(void* vns){
 }
 
 static bool
-addr_rta_handler(netstack_addr* na, const struct rtattr* rta, int* rlen){
+addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
+                 const struct rtattr* rta, int* rlen){
   // FIXME
   return true;
 }
 
 static bool
-route_rta_handler(netstack_route* nr, const struct rtattr* rta, int* rlen){
+route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
+                  const struct rtattr* rta, int* rlen){
   // FIXME
   return true;
 }
 
 static bool
-neigh_rta_handler(netstack_neigh* nn, const struct rtattr* rta, int* rlen){
+neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
+                  const struct rtattr* rta, int* rlen){
   // FIXME
   return true;
 }
 
 static bool
-link_rta_handler(netstack_iface* ni, const struct rtattr* rta, int* rlen){
+link_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
+                 const struct rtattr* rta, int* rlen){
   switch(rta->rta_type){
     case IFLA_ADDRESS:
       // FIXME copy L2 ucast address
@@ -185,23 +189,23 @@ link_rta_handler(netstack_iface* ni, const struct rtattr* rta, int* rlen){
 
 // FIXME xmacro all of these out
 static bool
-vlink_rta_handler(void* v, const struct rtattr* rta, int* rlen){
-  return link_rta_handler(v, rta, rlen);
+vlink_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
+  return link_rta_handler(v1, v2, rta, rlen);
 }
 
 static bool
-vaddr_rta_handler(void* v, const struct rtattr* rta, int* rlen){
-  return addr_rta_handler(v, rta, rlen);
+vaddr_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
+  return addr_rta_handler(v1, v2, rta, rlen);
 }
 
 static bool
-vroute_rta_handler(void* v, const struct rtattr* rta, int* rlen){
-  return route_rta_handler(v, rta, rlen);
+vroute_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
+  return route_rta_handler(v1, v2, rta, rlen);
 }
 
 static bool
-vneigh_rta_handler(void* v, const struct rtattr* rta, int* rlen){
-  return neigh_rta_handler(v, rta, rlen);
+vneigh_rta_handler(void* v1, const void* v2, const struct rtattr* rta, int* rlen){
+  return neigh_rta_handler(v1, v2, rta, rlen);
 }
 
 static netstack_iface*
@@ -289,12 +293,16 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     const struct ifaddrmsg* ifa = NLMSG_DATA(nhdr);
     const struct rtmsg* rt = NLMSG_DATA(nhdr);
     const struct ndmsg* nd = NLMSG_DATA(nhdr);
-    size_t hdrsize = 0; // size of leading object, depends on message type
-    void* newobj = NULL; // type depends on message type
-    bool (*pfxn)(void*, const struct rtattr*, int*) = NULL; // processor
+    const void* hdr = NULL; // aliases one of the NLMSG_DATA lvalues above
+    size_t hdrsize = 0; // size of leading object (hdr), depends on message type
+    void* newobj = NULL; // type depends on message type, result of create_*()
+    // processor for the type. takes the new netstack_* object (newobj), the
+    // leading type-dependent object (aliased by hdr), the first RTA, and &rlen.
+    bool (*pfxn)(void*, const void*, const struct rtattr*, int*) = NULL;
     void (*dfxn)(void*) = NULL; // destroyer of this type of object
     switch(ntype){
       case RTM_NEWLINK:
+        hdr = ifi;
         rta = IFLA_RTA(ifi);
         hdrsize = sizeof(*ifi);
         pfxn = vlink_rta_handler;
@@ -302,6 +310,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         newobj = create_iface();
         break;
       case RTM_NEWADDR:
+        hdr = ifa;
         rta = IFA_RTA(ifa);
         hdrsize = sizeof(*ifa);
         pfxn = vaddr_rta_handler;
@@ -309,6 +318,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         newobj = create_addr();
         break;
       case RTM_NEWROUTE:
+        hdr = rt;
         rta = RTM_RTA(rt);
         hdrsize = sizeof(*rt);
         pfxn = vroute_rta_handler;
@@ -316,6 +326,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         newobj = create_route();
         break;
       case RTM_NEWNEIGH:
+        hdr = nd;
         rta = NDA_RTA(nd);
         hdrsize = sizeof(*nd);
         pfxn = vneigh_rta_handler;
@@ -324,14 +335,13 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         break;
       default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
     }
-    if(rta == NULL){
-      dfxn(newobj);
+    if(newobj == NULL){
       break;
     }
     // FIXME factor all of this out probably
     int rlen = nlen - NLMSG_LENGTH(hdrsize);
     while(RTA_OK(rta, rlen)){
-      if(!pfxn(newobj, rta, &rlen)){
+      if(!pfxn(newobj, hdr, rta, &rlen)){
         dfxn(newobj);
         break;
       }
