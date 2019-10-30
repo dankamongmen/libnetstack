@@ -95,12 +95,12 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
       memcpy(ni->name, RTA_DATA(rta), nlen + 1);
       break;
     }
+    case IFLA_MTU:
     case IFLA_ADDRESS:
     case IFLA_BROADCAST:
     case IFLA_LINK:
     case IFLA_QDISC:
     case IFLA_STATS:
-    case IFLA_MTU:
     case IFLA_COST:
     case IFLA_PRIORITY:
     case IFLA_MASTER:
@@ -145,13 +145,15 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
     case IFLA_NEW_IFINDEX:
     case IFLA_MIN_MTU:
     case IFLA_MAX_MTU:
-      if(ni->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
-        ni->rta_indexed[rta->rta_type] = ((char*)ni->rtabuf) + rtaoff;
-      }
       break;
     default:
       fprintf(stderr, "Unknown IFLA_RTA type %d len %d\n", rta->rta_type, *rlen);
       ni->unknown_attrs = true;
+      return true;
+  }
+  if(ni->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
+    ni->rta_indexed[rta->rta_type] =
+      (struct rtattr*)(((char*)ni->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -174,11 +176,15 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
     case IFA_FLAGS:
     case IFA_RT_PRIORITY:
     case IFA_TARGET_NETNSID:
-      // FIXME
       break;
     default:
       fprintf(stderr, "Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
       na->unknown_attrs = true;
+      return true;
+  }
+  if(na->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
+    na->rta_indexed[rta->rta_type] =
+      (struct rtattr*)(((char*)na->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -226,6 +232,11 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
     default:
       fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
       nr->unknown_attrs = true;
+      return true;
+  }
+  if(nr->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
+    nr->rta_indexed[rta->rta_type] =
+      (struct rtattr*)(((char*)nr->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -255,6 +266,11 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
     default:
       fprintf(stderr, "Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
       nn->unknown_attrs = true;
+      return true;
+  }
+  if(nn->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
+    nn->rta_indexed[rta->rta_type] =
+      (struct rtattr*)(((char*)nn->rtabuf) + rtaoff);
   }
   return true;
 }
@@ -289,9 +305,10 @@ memdup(const void* v, size_t n){
   return ret;
 }
 
-static inline void*
-rtas_dup(const struct rtattr* rtas, int rlen, void** rta_indexed, size_t rtamax){
-  void* ret = memdup(rtas, rlen);
+static inline struct rtattr*
+rtas_dup(const struct rtattr* rtas, int rlen, struct rtattr* rta_indexed[],
+         size_t rtamax){
+  struct rtattr* ret = memdup(rtas, rlen);
   if(ret){
     memset(rta_indexed, 0, sizeof(*rta_indexed) * rtamax);
   }
@@ -668,8 +685,9 @@ const char* family_to_str(unsigned family){
 
 int netstack_print_iface(const netstack_iface* ni, FILE* out){
   int ret = 0;
-  ret = fprintf(out, "%03d [%*s]\n", ni->ifi.ifi_index,
-                (int)sizeof(ni->name) - 1, ni->name); // FIXME
+  ret = fprintf(out, "%03d [%*s] mtu: %5u\n", ni->ifi.ifi_index,
+                (int)sizeof(ni->name) - 1, ni->name, // FIXME
+                netstack_iface_mtu(ni));
   return ret;
 }
 
