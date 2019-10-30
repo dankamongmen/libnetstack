@@ -23,25 +23,46 @@ extern "C" {
 
 struct netstack;
 
+typedef struct netstack_iface {
+  struct ifinfomsg ifi;
+  char name[IFNAMSIZ];
+  // FIXME
+} netstack_iface;
+
+// Callback types for various events. Even though routes, addresses etc. can be
+// reached through a netstack_iface object, they each get their own type of
+// callback.
+typedef int(*netstack_iface_cb)(const netstack_iface*, void*);
+
 // The default for all members is false or the appropriate zero representation.
 typedef struct netstack_opts {
   // refrain from launching a thread to handle netlink events in the
   // background. caller will need to handle nonblocking I/O.
   bool no_thread;
+  // if a given callback is NULL, the default will be used (print to stdout)
+  netstack_iface_cb iface_cb;
 } netstack_opts;
 
 // Opts may be NULL, in which case the defaults will be used.
 struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 
-typedef struct netstack_dev {
-  char name[IFNAMSIZ];
-} netstack_dev;
+typedef struct netstack_addr {
+  struct ifaddrmsg ifa;
+  // FIXME
+} netstack_addr;
 
-// Callback type for netstack_foreach_dev().
-typedef int(*netstackcb)(const netstack_dev*, void*);
+typedef struct netstack_route {
+  struct rtmsg rt;
+  // FIXME
+} netstack_route;
 
-int netstack_foreach_dev(struct netstack* ns, void* curry);
+typedef struct netstack_neigh {
+  struct ndmsg nd;
+  // FIXME
+} netstack_neigh;
+
+int netstack_print_iface(const netstack_iface* ni, FILE* out);
 
 #ifdef __cplusplus
 }

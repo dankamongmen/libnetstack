@@ -30,27 +30,6 @@ typedef struct netstack {
   atomic_bool clear_to_send;
 } netstack;
 
-typedef struct netstack_iface {
-  char name[IFNAMSIZ];
-  // FIXME
-  struct ifinfomsg ifi;
-} netstack_iface;
-
-typedef struct netstack_addr {
-  struct ifaddrmsg ifa;
-  // FIXME
-} netstack_addr;
-
-typedef struct netstack_route {
-  struct rtmsg rt;
-  // FIXME
-} netstack_route;
-
-typedef struct netstack_neigh {
-  struct ndmsg nd;
-  // FIXME
-} netstack_neigh;
-
 // Sits on blocking nl_recvmsgs()
 static void*
 netstack_rx_thread(void* vns){
@@ -475,5 +454,11 @@ int netstack_destroy(netstack* ns){
     nl_socket_free(ns->nl);
     free(ns);
   }
+  return ret;
+}
+
+int netstack_print_iface(const netstack_iface* ni, FILE* out){
+  int ret = 0;
+  ret = fprintf(out, "[%s]\n", ni->name); // FIXME
   return ret;
 }
