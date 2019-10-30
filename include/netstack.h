@@ -175,6 +175,18 @@ netstack_route_typestr(const netstack_route* nr){
   }
 }
 
+static inline const char*
+netstack_route_protstr(const netstack_route* nr){
+  switch(nr->rt.rtm_protocol){
+    case RTPROT_UNSPEC: return "unknown";
+    case RTPROT_REDIRECT: return "icmp";
+    case RTPROT_KERNEL: return "kernel";
+    case RTPROT_BOOT: return "boot";
+    case RTPROT_STATIC: return "admin";
+    default: return "";
+  }
+}
+
 typedef struct netstack_neigh {
   struct ndmsg nd;
   struct rtattr* rtabuf;        // copied directly from message
