@@ -33,7 +33,7 @@ typedef struct netstack_iface {
 // Callback types for various events. Even though routes, addresses etc. can be
 // reached through a netstack_iface object, they each get their own type of
 // callback.
-typedef int(*netstack_iface_cb)(const netstack_iface*, void*);
+typedef void (*netstack_iface_cb)(const netstack_iface*, void*);
 
 // The default for all members is false or the appropriate zero representation.
 typedef struct netstack_opts {
