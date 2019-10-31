@@ -19,7 +19,8 @@ hwaddrstrlen(size_t addrlen){
 }
 
 // buf must be at least slen bytes
-void* l2ntop(const void *hwaddr, size_t slen, size_t alen, char* buf){
+static void*
+l2ntop(const void *hwaddr, size_t slen, size_t alen, char* buf){
   if(alen){
     unsigned idx;
     for(idx = 0 ; idx < alen ; ++idx){
@@ -32,7 +33,8 @@ void* l2ntop(const void *hwaddr, size_t slen, size_t alen, char* buf){
   return buf;
 }
 
-char* l2addrstr(int l2type, size_t len, const void* addr){
+static char*
+l2addrstr(int l2type, size_t len, const void* addr){
   (void)l2type; // FIXME need for quirks
   size_t slen = hwaddrstrlen(len);
   char* ret = malloc(slen);
@@ -57,32 +59,40 @@ int netstack_print_iface(const netstack_iface* ni, FILE* out){
   return 0;
 }
 
-int netstack_print_addr(const netstack_addr* na, FILE* out){
+static char*
+l3addrstr(int l3fam, const struct rtattr* rta, char* str, size_t slen){
   size_t alen; // 4 for IPv4, 16 for IPv6
-  const struct rtattr* nlrta = netstack_addr_attr(na, IFA_ADDRESS);
-  if(nlrta == NULL){
-    return -1;
-  }
-  if(na->ifa.ifa_family == AF_INET){
+  if(l3fam == AF_INET){
     alen = 4;
-  }else if(na->ifa.ifa_family == AF_INET6){
+  }else if(l3fam == AF_INET6){
     alen = 16;
   }else{
-    return -1;
+    return NULL;
   }
-  if(RTA_PAYLOAD(nlrta) != alen){
-    return -1;
+  if(RTA_PAYLOAD(rta) != alen){
+    return NULL;
   }
   char naddrv[16]; // hold a full raw IPv6 adress
-  memcpy(naddrv, RTA_DATA(nlrta), alen);
-  char nlstr[INET6_ADDRSTRLEN];
-  if(!inet_ntop(na->ifa.ifa_family, naddrv, nlstr, sizeof(nlstr))){
+  memcpy(naddrv, RTA_DATA(rta), alen);
+  if(!inet_ntop(l3fam, naddrv, str, slen)){
+    return NULL;
+  }
+  return str;
+}
+
+int netstack_print_addr(const netstack_addr* na, FILE* out){
+  const struct rtattr* narta = netstack_addr_attr(na, IFA_ADDRESS);
+  if(narta == NULL){
+    return -1;
+  }
+  char nastr[INET6_ADDRSTRLEN];
+  if(!l3addrstr(na->ifa.ifa_family, narta, nastr, sizeof(nastr))){
     return -1;
   }
   int ret = 0;
   ret = fprintf(out, "%3d [%s] %s/%u\n", na->ifa.ifa_index,
                 family_to_str(na->ifa.ifa_family),
-                nlstr, na->ifa.ifa_prefixlen);
+                nastr, na->ifa.ifa_prefixlen);
   if(ret < 0){
     return -1;
   }
