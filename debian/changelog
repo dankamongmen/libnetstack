@@ -1,3 +1,9 @@
+libnetstack (0.1.1-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Nick Black <dankamongmen@gmail.com>  Wed, 30 Oct 2019 22:53:07 -0400
+
 libnetstack (0.1.0-1) unstable; urgency=medium
 
   * Initial release
