@@ -1,6 +1,7 @@
 #ifndef LIBNETSTACK_NETSTACK
 #define LIBNETSTACK_NETSTACK
 
+#include <stdio.h>
 #include <net/if.h>
 #include <stdint.h>
 #include <stdbool.h>
