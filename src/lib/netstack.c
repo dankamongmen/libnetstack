@@ -748,6 +748,7 @@ int netstack_print_iface(const netstack_iface* ni, FILE* out){
                 (int)sizeof(ni->name) - 1, ni->name, // FIXME
                 llstr ? llstr : "", llstr ? ' ' : '\0',
                 netstack_iface_mtu(ni));
+  free(llstr);
   return ret;
 }
 
