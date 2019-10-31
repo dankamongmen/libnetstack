@@ -100,9 +100,17 @@ int netstack_print_addr(const netstack_addr* na, FILE* out){
 }
 
 int netstack_print_route(const netstack_route* nr, FILE* out){
+  const struct rtattr* nrrta = netstack_route_attr(nr, IFA_ADDRESS);
+  if(nrrta == NULL){
+    return -1;
+  }
+  char nastr[INET6_ADDRSTRLEN];
+  if(!l3addrstr(nr->rt.rtm_family, nrrta, nastr, sizeof(nastr))){
+    return -1;
+  }
   int ret = 0;
-  ret = fprintf(out, "[%s] %s %s metric %d prio %d in %d out %d\n",
-                family_to_str(nr->rt.rtm_family),
+  ret = fprintf(out, "[%s] %s/%u %s %s metric %d prio %d in %d out %d\n",
+                family_to_str(nr->rt.rtm_family), nastr, nr->rt.rtm_dst_len,
                 netstack_route_typestr(nr), netstack_route_protstr(nr),
                 netstack_route_metric(nr), netstack_route_priority(nr),
                 netstack_route_iif(nr), netstack_route_oif(nr));
