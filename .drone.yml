@@ -3,7 +3,7 @@ pipeline:
     image: library/debian:unstable
     commands:
       - apt-get update
-      - apt-get -y install devscripts git-buildpackage libnl-3-dev
+      - apt-get -y install devscripts git-buildpackage
       - mk-build-deps --install -t'apt-get -y'
       - mkdir build
       - cd build
