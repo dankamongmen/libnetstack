@@ -121,9 +121,17 @@ int netstack_print_route(const netstack_route* nr, FILE* out){
 }
 
 int netstack_print_neigh(const netstack_neigh* nn, FILE* out){
+  const struct rtattr* nnrta = netstack_neigh_attr(nn, NDA_DST);
+  if(nnrta == NULL){
+    return -1;
+  }
+  char nastr[INET6_ADDRSTRLEN];
+  if(!l3addrstr(nn->nd.ndm_family, nnrta, nastr, sizeof(nastr))){
+    return -1;
+  }
   int ret = 0;
-  ret = fprintf(out, "%3d [%s]\n", nn->nd.ndm_ifindex,
-                family_to_str(nn->nd.ndm_family)); // FIXME
+  ret = fprintf(out, "%3d [%s] %s\n", nn->nd.ndm_ifindex,
+                family_to_str(nn->nd.ndm_family), nastr);
   if(ret < 0){
     return -1;
   }
