@@ -23,14 +23,15 @@ I intend to support FreeBSD in the future.
 
 I believe libnetstack to be more performant on the very complex networking
 stacks present in certain environments, and to better serve heavily parallel
-access. The typical user is unlikely to see meaningful performance difference.
+access. The typical user is unlikely to see a meaningful performance
+difference.
 
 Libnetstack is Apache-licensed, whereas libnl-route is LGPL.
 
 ## Requirements
 
-* CMake, a C11 compiler, and a C++14 compiler
-* libnl 3.4.0+
+* Core library: CMake, a C11 compiler, and libnl 3.4.0+
+* Tests: a C++14 compiler and GoogleTest 1.9.0+
 
 ## Use
 
