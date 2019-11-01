@@ -431,28 +431,33 @@ static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 #endif
 
 static inline void
-viface_cb(const netstack* ns, netstack_event_e etype, const void* vni){
-  ns->opts.iface_cb(vni, etype, ns->opts.iface_curry);
-  // FIXME update our cache
+viface_cb(netstack* ns, netstack_event_e etype, void* vni){
+  netstack_iface* ni = vni;
+  int hidx = ni->ifi.ifi_index % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
+  pthread_mutex_lock(&ns->hashlock);
+  ni->hnext = ns->iface_hash[hidx];
+  ns->iface_hash[hidx] = ni;
+  pthread_mutex_unlock(&ns->hashlock);
+  ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
 }
 
 static inline void
-vaddr_cb(const netstack* ns, netstack_event_e etype, const void* vna){
+vaddr_cb(netstack* ns, netstack_event_e etype, void* vna){
   ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
 }
 
 static inline void
-vroute_cb(const netstack* ns, netstack_event_e etype, const void* vnr){
+vroute_cb(netstack* ns, netstack_event_e etype, void* vnr){
   ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
 }
 
 static inline void
-vneigh_cb(const netstack* ns, netstack_event_e etype, const void* vnn){
+vneigh_cb(netstack* ns, netstack_event_e etype, void* vnn){
   ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
 }
 
 static int
-msg_handler_internal(struct nl_msg* msg, const netstack* ns){
+msg_handler_internal(struct nl_msg* msg, netstack* ns){
   struct nlmsghdr* nhdr = nlmsg_hdr(msg);
   int nlen = nhdr->nlmsg_len;
   while(nlmsg_ok(nhdr, nlen)){
@@ -469,7 +474,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     // by hdr), the offset of the RTA being handled, and &rlen.
     bool (*pfxn)(void*, const void*, size_t, int*);
     void (*dfxn)(void*); // destroyer of this type of object
-    void (*cfxn)(const netstack*, netstack_event_e, const void*); // action end
+    void (*cfxn)(netstack*, netstack_event_e, void*); // user callback wrapper
     void* (*gfxn)(const struct rtattr*, int); // constructor
     netstack_event_e etype;
     switch(ntype){
@@ -539,7 +544,6 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
       return NL_SKIP;
     }
     cfxn(ns, etype, newobj);
-    dfxn(newobj); // FIXME keep it cached
     nhdr = nlmsg_next(nhdr, &nlen);
   }
   if(nlen){
@@ -717,7 +721,7 @@ netstack_iface_byidx(const netstack* ns, int idx){
   int hidx = idx % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
   netstack_iface* ni = ns->iface_hash[hidx];
   while(ni){
-    if(ni->ifi.ifi_index == idx){
+    if(ni->ifi.ifi_index == hidx){
       break;
     }
     ni = ni->hnext;
