@@ -156,3 +156,7 @@ Whether deep-copied or shared, the object can and must be abandoned via
 `netstack_iface_abandon()`. This should be done even if the `netstack` is
 destroyed, with the implication that a shared `netstack_iface` remains valid
 after a call to `netstack_destroy()`.
+
+<p align="center">
+<img width="1280" height="640" src="tools/libnetstack.jpg"/>
+</p>
