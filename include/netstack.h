@@ -342,9 +342,6 @@ vnetstack_print_neigh(const netstack_neigh* nn, netstack_event_e etype, void* vf
   netstack_print_neigh(nn, f);
 }
 
-// Free up a netstack_iface copied by netstack_iface_copy().
-void netstack_iface_destroy(netstack_iface* ni);
-
 #ifdef __cplusplus
 }
 #endif
