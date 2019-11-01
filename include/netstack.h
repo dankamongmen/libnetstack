@@ -51,11 +51,37 @@ index_into_rta(const struct rtattr* rtabuf, size_t offset){
 
 const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int attridx);
 char* netstack_iface_name(const struct netstack_iface* ni, char* name);
-uint32_t netstack_iface_mtu(const struct netstack_iface* ni);
-void* netstack_iface_lladdr(const struct netstack_iface* ni, void* buf, size_t* len);
 int netstack_iface_type(const struct netstack_iface* ni);
 int netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
+
+// pass in the maximum number of bytes available for copying the link-layer
+// address. if this is sufficient, the actual number of bytes copied will be
+// stored to this variable. otherwise, NULL will be returned.
+static inline void*
+netstack_iface_lladdr(const struct netstack_iface* ni, void* buf, size_t* len){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_ADDRESS);
+  if(rta == NULL || *len < RTA_PAYLOAD(rta)){
+    return NULL;
+  }
+  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  return buf;
+}
+
+static inline uint32_t
+netstack_iface_mtu(const struct netstack_iface* ni){
+  const struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
+  uint32_t ret;
+  if(attr){
+    if(RTA_PAYLOAD(attr) != sizeof(ret)){
+      return 0;
+    }
+    memcpy(&ret, RTA_DATA(attr), RTA_PAYLOAD(attr));
+  }else{
+    ret = 0;
+  }
+  return ret;
+}
 
 typedef struct netstack_addr {
   struct ifaddrmsg ifa;
