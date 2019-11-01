@@ -304,7 +304,7 @@ netstack_iface* netstack_iface_copy_byidx(struct netstack* ns, int idx);
 // a share operation. Note that while the signature claims constness, ns will
 // actually presumably be mutated (via alias). It is thus imperative that the
 // passed object not be used again by the caller!
-void netstack_iface_abandon(const struct netstack_iface* ns);
+void netstack_iface_abandon(const netstack_iface* ns);
 
 // Print human-readable object summaries to the specied FILE*. -1 on error.
 int netstack_print_iface(const netstack_iface* ni, FILE* out);

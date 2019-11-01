@@ -747,3 +747,8 @@ const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
   pthread_mutex_unlock(&ns->hashlock);
   return ni;
 }
+
+void netstack_iface_abandon(const netstack_iface* ns){
+  netstack_iface* unsafe_ns = (netstack_iface*)ns;
+  netstack_iface_destroy(unsafe_ns);
+}
