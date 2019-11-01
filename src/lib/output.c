@@ -48,9 +48,8 @@ int netstack_print_iface(const netstack_iface* ni, FILE* out){
   if(llrta){
     llstr = l2addrstr(ni->ifi.ifi_type, RTA_PAYLOAD(llrta), RTA_DATA(llrta));
   }
-  ret = fprintf(out, "%3d [%*s] %s%cmtu %u\n", ni->ifi.ifi_index,
-                (int)sizeof(ni->name) - 1, ni->name, // FIXME
-                llstr ? llstr : "", llstr ? ' ' : '\0',
+  ret = fprintf(out, "%3d [%s] %s%smtu %u\n", ni->ifi.ifi_index,
+                ni->name, llstr ? llstr : "", llstr ? " " : "\0",
                 netstack_iface_mtu(ni));
   free(llstr);
   if(ret < 0){
