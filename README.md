@@ -23,7 +23,7 @@ Libnetstack is Apache-licensed.
 
 ## Requirements
 
-* CMake and a C compiler
+* CMake, a C11 compiler, and a C++14 compiler
 * libnl 3.4.0+
 
 ## Use
@@ -34,7 +34,6 @@ returned. A program may have an many netstacks as it likes, though I can't see
 much point in more than one in a process.
 
 ```
-struct netstack;
 struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 ```
@@ -46,6 +45,35 @@ this can usually be ignored by the caller.
 The caller now interacts with the library in two ways: its registered callbacks
 will be invoked for each event processed, and at any time it can access the
 libnetstack cache.
+
+### Object types
+
+Four object types are currently supported:
+
+* _ifaces_, corresponding to network devices both physical and virtual. There
+  is a one-to-one correspondence to elements in sysfs's `/class/net` node, and
+  to the outputs of `ip route list`.
+
+The remaining objects are all associated with a single _iface_, but
+multiple _ifaces_ might each lay claim to overlapping objects. For instance, it
+is possible (though usually pathological) to have the same _address_ on two
+different interfaces. This will result in two _address_ objects, each reachable
+through a different _iface_.
+
+* _addresses_, corresponding to local layer 3 addresses. An _address_ might
+  have a corresponding _broadcast address_.
+* _neighbors_, corresponding to l3 addresses thought to be reachable via direct
+  transmission. A _neighbor_ might have a corresponding _link address_.
+  In IPv4, these objects are largely a function of ARP. In IPv6, they primarily
+  result from NDP.
+* _routes_, corresponding to a destination l3 network. _routes_ specify an
+  associated _source address_. This _source address_ will typically correspond
+  to a known local _address_, but this cannot be assumed (to construct an
+  example from the command line, add an IP to an interface, add a route
+  specifying that source IP, and remove the address).
+
+In general, objects correspond to `rtnetlink(7)` message type families.
+Multicast support is planned.
 
 ### Options
 
