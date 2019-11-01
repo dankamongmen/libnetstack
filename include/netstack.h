@@ -276,10 +276,23 @@ typedef struct netstack_opts {
 struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 
+// Take a reference on some netstack iface for read-only use in the client.
+// There is no copy, but the object still needs to be freed by a call to
+// netstack_iface_abandon().
+const netstack_iface* netstack_iface_share_byname(const struct netstack* ns, const char* name);
+const netstack_iface* netstack_iface_share_byidx(const struct netstack* ns, int idx);
+
 // Copy out a netstack iface for arbitrary use in the client. This is a
-// heavyweight copy, and must be freed using netstack_iface_destroy().
+// heavyweight copy, and must be freed using netstack_iface_destroy(). You
+// would usually be better served by netstack_iface_share_*().
 netstack_iface* netstack_iface_copy_byname(const struct netstack* ns, const char* name);
 netstack_iface* netstack_iface_copy_byidx(const struct netstack* ns, int idx);
+
+// Release a netstack_iface acquired from the netstack through either a copy or
+// a share operation. Note that while the signature claims constness, ns will
+// actually presumably be mutated (via alias). It is thus imperative that the
+// passed object not be used again by the caller!
+void netstack_iface_abandon(const struct netstack_iface* ns);
 
 // Print human-readable object summaries to the specied FILE*. -1 on error.
 int netstack_print_iface(const netstack_iface* ni, FILE* out);

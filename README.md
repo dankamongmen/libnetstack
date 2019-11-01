@@ -78,7 +78,8 @@ Since events can arrive at any time, invalidating the object cache, it is
 necessary that the caller either:
 
 * increment a reference counter, yielding a pointer to an immutable object
-   which must be referenced down (`netstack_iface_share_byname()` / `netstack_iface_share_byidx()`),
+   which must be referenced down (`netstack_iface_share_byname()` /
+   `netstack_iface_share_byidx()`),
 * deep-copy objects out upon access, yielding a mutable object which must be
    destroyed (`netstack_iface_copy_byname()` / `netstack_iface_copy_byidx()`),
    or
