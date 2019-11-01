@@ -43,6 +43,10 @@ When done using the netstack, call `netstack_destroy()` to release its
 resources and perform consistency checks. On failure, non-zero is returned, but
 this can usually be ignored by the caller.
 
+The caller now interacts with the library in two ways: its registered callbacks
+will be invoked for each event processed, and at any time it can access the
+libnetstack cache.
+
 ### Options
 
 Usually, the caller will want to at least configure some callbacks using the
@@ -70,3 +74,46 @@ typedef struct netstack_opts {
   void* neigh_curry;
 } netstack_opts;
 ```
+
+### Accessing cached objects
+
+Since events can arrive at any time, invalidating the object cache, it is
+necessary that the caller either:
+
+* increment a reference counter, yielding a pointer to an immutable object
+   which must be referenced down,
+* deep-copy objects out upon access, yielding a mutable object which must be
+   destroyed (`netstack_iface_copy_byname()` / `netstack_iface_copy_byidx())`,
+   or
+* extract any elements (via copy) without gaining access to the greater object.
+
+
+All three mechanisms are supported. Each mechanism takes place while locking at
+least part of the netstack internals, possibly blocking other threads
+(including those of the netstack itself, potentially causing kernel events to
+be dropped). The first and third are the most generally useful ways to operate.
+
+When only a small amount of information is needed, the third method is
+simplest and most effective. The call is provided a key (interface index or
+name). While locked, the corresponding object is found, and the appropriate
+data are copied out. The lock is released, and the copied data are returned.
+Note that it is impossible using this method to get an atomic view of
+multiple attributes, since the object might change (or be destroyed) between
+calls. Aside from when an attribute of variable length is returned, there is
+nothing to free.
+
+When the object will be needed for multiple operations, it's generally better
+to use the reference-counter approach. Compared to the extraction method, this
+allows atomic inspection of multiple attributes, and requires only one lookup
+instead of N. While the object is held, it cannot be destroyed by the netstack,
+but it might be replaced. It is thus possible for multiple objects in this
+situation to share the same key, something that never happens in the real world
+(or in the netstack cache). Failing to down the reference counter is
+effectively a memory leak.
+
+The second mechanism, a deep copy, is only rarely useful. It leaves no residue
+outside the caller, and is never shared when created. This could be important
+for certain control flows and memory architectures.
+
+Whether deepcopied or shared, the object can and must be abandoned via
+`netstack_iface_abandon()`.
