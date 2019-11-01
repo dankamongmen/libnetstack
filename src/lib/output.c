@@ -100,19 +100,24 @@ int netstack_print_addr(const netstack_addr* na, FILE* out){
 
 int netstack_print_route(const netstack_route* nr, FILE* out){
   const struct rtattr* nrrta = netstack_route_attr(nr, IFA_ADDRESS);
-  if(nrrta == NULL){
-    return -1;
-  }
-  char nastr[INET6_ADDRSTRLEN];
-  if(!l3addrstr(nr->rt.rtm_family, nrrta, nastr, sizeof(nastr))){
-    return -1;
-  }
   int ret = 0;
-  ret = fprintf(out, "[%s] %s/%u %s %s metric %d prio %d in %d out %d\n",
-                family_to_str(nr->rt.rtm_family), nastr, nr->rt.rtm_dst_len,
-                netstack_route_typestr(nr), netstack_route_protstr(nr),
-                netstack_route_metric(nr), netstack_route_priority(nr),
-                netstack_route_iif(nr), netstack_route_oif(nr));
+  if(nrrta == NULL){
+    ret = fprintf(out, "[%s] default %s %s metric %d prio %d in %d out %d\n",
+                  family_to_str(nr->rt.rtm_family),
+                  netstack_route_typestr(nr), netstack_route_protstr(nr),
+                  netstack_route_metric(nr), netstack_route_priority(nr),
+                  netstack_route_iif(nr), netstack_route_oif(nr));
+  }else{
+    char nastr[INET6_ADDRSTRLEN];
+    if(!l3addrstr(nr->rt.rtm_family, nrrta, nastr, sizeof(nastr))){
+      return -1;
+    }
+    ret = fprintf(out, "[%s] %s/%u %s %s metric %d prio %d in %d out %d\n",
+                  family_to_str(nr->rt.rtm_family), nastr, nr->rt.rtm_dst_len,
+                  netstack_route_typestr(nr), netstack_route_protstr(nr),
+                  netstack_route_metric(nr), netstack_route_priority(nr),
+                  netstack_route_iif(nr), netstack_route_oif(nr));
+  }
   if(ret < 0){
     return -1;
   }
@@ -128,18 +133,20 @@ int netstack_print_neigh(const netstack_neigh* nn, FILE* out){
   if(!l3addrstr(nn->nd.ndm_family, nnrta, nastr, sizeof(nastr))){
     return -1;
   }
+  int ret = 0;
   const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
   if(l2rta == NULL){
-    return -1;
+    char* llstr = NULL;
+    if(l2rta){
+      llstr = l2addrstr(0, RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
+    }
+    ret = fprintf(out, "%3d [%s] %s %s\n", nn->nd.ndm_ifindex,
+                  family_to_str(nn->nd.ndm_family), nastr, llstr);
+    free(llstr);
+  }else{
+    ret = fprintf(out, "%3d [%s] %s\n", nn->nd.ndm_ifindex,
+                  family_to_str(nn->nd.ndm_family), nastr);
   }
-  char* llstr = NULL;
-  if(l2rta){
-    llstr = l2addrstr(0, RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
-  }
-  int ret = 0;
-  ret = fprintf(out, "%3d [%s] %s %s\n", nn->nd.ndm_ifindex,
-                family_to_str(nn->nd.ndm_family), nastr, llstr);
-  free(llstr);
   if(ret < 0){
     return -1;
   }
