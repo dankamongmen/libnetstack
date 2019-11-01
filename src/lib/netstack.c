@@ -438,22 +438,30 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   ni->hnext = ns->iface_hash[hidx];
   ns->iface_hash[hidx] = ni;
   pthread_mutex_unlock(&ns->hashlock);
-  ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
+  if(ns->opts.iface_cb){
+    ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
+  }
 }
 
 static inline void
 vaddr_cb(netstack* ns, netstack_event_e etype, void* vna){
-  ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
+  if(ns->opts.addr_cb){
+    ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
+  }
 }
 
 static inline void
 vroute_cb(netstack* ns, netstack_event_e etype, void* vnr){
-  ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
+  if(ns->opts.route_cb){
+    ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
+  }
 }
 
 static inline void
 vneigh_cb(netstack* ns, netstack_event_e etype, void* vnn){
-  ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
+  if(ns->opts.neigh_cb){
+    ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
+  }
 }
 
 static int
