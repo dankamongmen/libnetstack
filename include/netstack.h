@@ -165,7 +165,23 @@ netstack_route_protstr(const netstack_route* nr){
     case RTPROT_KERNEL: return "kernel";
     case RTPROT_BOOT: return "boot";
     case RTPROT_STATIC: return "admin";
-    default: return "";
+    case RTPROT_GATED: return "gated";
+    case RTPROT_RA: return "rdisc/nd";
+    case RTPROT_MRT: return "meritmrt";
+    case RTPROT_ZEBRA: return "zebra";
+    case RTPROT_BIRD: return "bird";
+    case RTPROT_DNROUTED: return "decnet";
+    case RTPROT_XORP: return "xdrp";
+    case RTPROT_NTK: return "netsukuku";
+    case RTPROT_DHCP: return "dhcp";
+    case RTPROT_MROUTED: return "mcastd";
+    case RTPROT_BABEL: return "babeld";
+    case RTPROT_BGP: return "bgp";
+    case RTPROT_ISIS: return "isis";
+    case RTPROT_OSPF: return "ospf";
+    case RTPROT_RIP: return "rip";
+    case RTPROT_EIGRP: return "eigrp";
+    default: return "?";
   }
 }
 
