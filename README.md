@@ -81,9 +81,9 @@ Since events can arrive at any time, invalidating the object cache, it is
 necessary that the caller either:
 
 * increment a reference counter, yielding a pointer to an immutable object
-   which must be referenced down,
+   which must be referenced down (`netstack_iface_share_byname()` / `netstack_iface_share_byidx()`),
 * deep-copy objects out upon access, yielding a mutable object which must be
-   destroyed (`netstack_iface_copy_byname()` / `netstack_iface_copy_byidx())`,
+   destroyed (`netstack_iface_copy_byname()` / `netstack_iface_copy_byidx()`),
    or
 * extract any elements (via copy) without gaining access to the greater object.
 
@@ -115,5 +115,5 @@ The second mechanism, a deep copy, is only rarely useful. It leaves no residue
 outside the caller, and is never shared when created. This could be important
 for certain control flows and memory architectures.
 
-Whether deepcopied or shared, the object can and must be abandoned via
+Whether deep-copied or shared, the object can and must be abandoned via
 `netstack_iface_abandon()`.
