@@ -14,6 +14,10 @@
 #include <linux/rtnetlink.h>
 #include "netstack.h"
 
+// Naive hash. Interface numbers are assigned successively, so there ought
+// generally not be clashes with a linear mod map.
+#define IFACE_HASH_SLOTS 256
+
 typedef struct netstack {
   struct nl_sock* nl;  // netlink connection abstraction from libnl
   pthread_t rxtid;
@@ -29,6 +33,7 @@ typedef struct netstack {
   pthread_mutex_t txlock;
   atomic_bool clear_to_send;
   netstack_opts opts; // copied wholesale in netstack_create()
+  netstack_iface* iface_hash[IFACE_HASH_SLOTS];
 } netstack;
 
 // Sits on blocking nl_recvmsgs()
@@ -373,7 +378,7 @@ create_neigh(const struct rtattr* rtas, int rlen){
 static inline void*
 vcreate_neigh(const struct rtattr* rtas, int rlen){ return create_neigh(rtas, rlen); }
 
-static void free_iface(netstack_iface* ni){
+void netstack_iface_destroy(netstack_iface* ni){
   if(ni){
     free(ni->rtabuf);
     free(ni);
@@ -401,7 +406,7 @@ static void free_neigh(netstack_neigh* nn){
   }
 }
 
-static inline void vfree_iface(void* vni){ free_iface(vni); }
+static inline void vfree_iface(void* vni){ netstack_iface_destroy(vni); }
 static inline void vfree_addr(void* va){ free_addr(va); }
 static inline void vfree_route(void* vr){ free_route(vr); }
 static inline void vfree_neigh(void* vn){ free_neigh(vn); }
@@ -604,6 +609,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   ns->queueidx = sizeof(dumpmsgs) / sizeof(*dumpmsgs);
   ns->dequeueidx = 0;
   ns->clear_to_send = true;
+  memset(&ns->iface_hash, 0, sizeof(ns->iface_hash));
   if((ns->nl = nl_socket_alloc()) == NULL){
     return -1;
   }
@@ -698,5 +704,34 @@ int netstack_destroy(netstack* ns){
     nl_socket_free(ns->nl);
     free(ns);
   }
+  return ret;
+}
+
+netstack_iface* netstack_iface_copy_byname(const netstack* ns, const char* name){
+  netstack_iface* ni;
+  (void)ns; (void)name; ni = NULL; // FIXME
+  return ni;
+}
+
+static inline netstack_iface*
+netstack_iface_byidx(const netstack* ns, int idx){
+  if(idx < 0){
+    return NULL;
+  }
+  int hidx = idx % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
+  netstack_iface* ni = ns->iface_hash[hidx];
+  while(ni){
+    if(ni->ifi.ifi_index == idx){
+      break;
+    }
+    ni = ni->hnext;
+  }
+  return ni;
+}
+
+netstack_iface* netstack_iface_copy_byidx(const netstack* ns, int idx){
+  netstack_iface* ni = netstack_iface_byidx(ns, idx);
+  netstack_iface* ret = create_iface(ni->rtabuf, ni->rtabuflen);
+  // FIXME populate new indices
   return ret;
 }

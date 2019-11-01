@@ -44,6 +44,7 @@ typedef struct netstack_iface {
   // rtabuf by attr type. NULL if that attr wasn't in the message.
   const struct rtattr* rta_indexed[__IFLA_MAX];
   bool unknown_attrs; // are there attrs >= __IFLA_MAX?
+  struct netstack_iface* hnext; // next in the idx-hashed table ns->iface_slots
 } netstack_iface;
 
 static inline const struct rtattr *
@@ -276,10 +277,18 @@ typedef struct netstack_opts {
 struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 
+// Copy out a netstack iface for arbitrary use in the client. This is a
+// heavyweight copy, and must be freed using netstack_iface_destroy().
+netstack_iface* netstack_iface_copy_byname(const struct netstack* ns, const char* name);
+netstack_iface* netstack_iface_copy_byidx(const struct netstack* ns, int idx);
+
 int netstack_print_iface(const netstack_iface* ni, FILE* out);
 int netstack_print_addr(const netstack_addr* na, FILE* out);
 int netstack_print_route(const netstack_route* nr, FILE* out);
 int netstack_print_neigh(const netstack_neigh* nn, FILE* out);
+
+// Free up a netstack_iface copied by netstack_iface_copy().
+void netstack_iface_destroy(netstack_iface* ni);
 
 #ifdef __cplusplus
 }
