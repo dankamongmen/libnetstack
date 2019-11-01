@@ -18,6 +18,29 @@
 // generally not be clashes with a linear mod map.
 #define IFACE_HASH_SLOTS 256
 
+// each of these types corresponds to a different rtnetlink message type. we
+// copy the payload directly from the netlink message to rtabuf, but that form
+// requires o(n) to get to any given attribute. we store a table of n offsets
+// into this buffer at rta_index. if we're running on a newer kernel, we might
+// get an attribute larger than we're prepared to handle. that's fine.
+// interested parties can still extract it using rtnetlink(3) macros. the
+// convenience functions netstack_*_attr() are provided for this purpose: each
+// will retrieve the value via lookup if less than the MAX against which we
+// were compiled, and do an o(n) check otherwise.
+typedef struct netstack_iface {
+  struct ifinfomsg ifi;
+  char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
+  struct rtattr* rtabuf; // copied directly from message
+  size_t rtabuflen; // number of bytes copied to rtabuf
+  // set up before invoking the user callback, these allow for o(1) index into
+  // rtabuf by attr type. NULL if that attr wasn't in the message. We use
+  // offsets rather than pointers lest deep copy require recomputing the index.
+  size_t rta_index[__IFLA_MAX];
+  bool unknown_attrs; // are there attrs >= __IFLA_MAX?
+  struct netstack_iface* hnext; // next in the idx-hashed table ns->iface_slots
+  atomic_int refcount; // netstack and/or client(s) can share objects
+} netstack_iface;
+
 typedef struct netstack {
   struct nl_sock* nl;  // netlink connection abstraction from libnl
   pthread_t rxtid;
@@ -763,4 +786,58 @@ const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
 void netstack_iface_abandon(const netstack_iface* ns){
   netstack_iface* unsafe_ns = (netstack_iface*)ns;
   netstack_iface_destroy(unsafe_ns);
+}
+
+const struct rtattr* netstack_iface_attr(const netstack_iface* ni, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(ni->rta_index) / sizeof(*ni->rta_index)){
+    return index_into_rta(ni->rtabuf, ni->rta_index[attridx]);
+  }
+  if(!ni->unknown_attrs){
+    return NULL;
+  }
+  return netstack_extract_rta_attr(ni->rtabuf, ni->rtabuflen, attridx);
+}
+
+// name must be at least IFNAMSIZ bytes, or better yet sizeof(ni->name). this
+// has been validated as safe to copy into char[IFNAMSIZ] (i.e. you'll
+// definitely get a NUL terminator), unlike netstack_iface_attr(IFLA_NAME).
+char* netstack_iface_name(const netstack_iface* ni, char* name){
+  return strcpy(name, ni->name);
+}
+
+// pass in the maximum number of bytes available for copying the link-layer
+// address. if this is sufficient, the actual number of bytes copied will be
+// stored to this variable. otherwise, NULL will be returned.
+void* netstack_iface_lladdr(const netstack_iface* ni, void* buf, size_t* len){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_ADDRESS);
+  if(rta == NULL || *len < RTA_PAYLOAD(rta)){
+    return NULL;
+  }
+  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  return buf;
+}
+
+int netstack_iface_type(const netstack_iface* ni){
+  return ni->ifi.ifi_type;
+}
+
+int netstack_iface_index(const netstack_iface* ni){
+  return ni->ifi.ifi_index;
+}
+
+uint32_t netstack_iface_mtu(const netstack_iface* ni){
+  const struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
+  uint32_t ret;
+  if(attr){
+    if(RTA_PAYLOAD(attr) != sizeof(ret)){
+      return 0;
+    }
+    memcpy(&ret, RTA_DATA(attr), RTA_PAYLOAD(attr));
+  }else{
+    ret = 0;
+  }
+  return ret;
 }

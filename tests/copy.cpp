@@ -9,13 +9,13 @@ struct copycurry {
   int idx;
 };
 
-void ifacecb(const netstack_iface* cb, netstack_event_e etype, void* curry) {
+void ifacecb(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   if(etype != NETSTACK_MOD){
     return;
   }
   struct copycurry* cc = static_cast<struct copycurry*>(curry);
   cc->mlock.lock();
-  cc->idx = cb->ifi.ifi_index;
+  cc->idx = netstack_iface_index(ni);
   cc->mlock.unlock();
   cc->mcond.notify_all();
 }

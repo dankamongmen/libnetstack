@@ -31,29 +31,7 @@ extern "C" {
 // single netstack object at once, until it is destroyed.
 
 struct netstack;
-
-// each of these types corresponds to a different rtnetlink message type. we
-// copy the payload directly from the netlink message to rtabuf, but that form
-// requires o(n) to get to any given attribute. we store a table of n offsets
-// into this buffer at rta_index. if we're running on a newer kernel, we might
-// get an attribute larger than we're prepared to handle. that's fine.
-// interested parties can still extract it using rtnetlink(3) macros. the
-// convenience functions netstack_*_attr() are provided for this purpose: each
-// will retrieve the value via lookup if less than the MAX against which we
-// were compiled, and do an o(n) check otherwise.
-typedef struct netstack_iface {
-  struct ifinfomsg ifi;
-  char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
-  struct rtattr* rtabuf; // copied directly from message
-  size_t rtabuflen; // number of bytes copied to rtabuf
-  // set up before invoking the user callback, these allow for o(1) index into
-  // rtabuf by attr type. NULL if that attr wasn't in the message. We use
-  // offsets rather than pointers lest deep copy require recomputing the index.
-  size_t rta_index[__IFLA_MAX];
-  bool unknown_attrs; // are there attrs >= __IFLA_MAX?
-  struct netstack_iface* hnext; // next in the idx-hashed table ns->iface_slots
-  atomic_int refcount; // netstack and/or client(s) can share objects
-} netstack_iface;
+struct netstack_iface;
 
 static inline const struct rtattr*
 netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
@@ -71,55 +49,12 @@ index_into_rta(const struct rtattr* rtabuf, size_t offset){
   return (const struct rtattr*)(((char*)rtabuf) + offset);
 }
 
-static inline const struct rtattr*
-netstack_iface_attr(const netstack_iface* ni, int attridx){
-  if(attridx < 0){
-    return NULL;
-  }
-  if((size_t)attridx < sizeof(ni->rta_index) / sizeof(*ni->rta_index)){
-    return index_into_rta(ni->rtabuf, ni->rta_index[attridx]);
-  }
-  if(!ni->unknown_attrs){
-    return NULL;
-  }
-  return netstack_extract_rta_attr(ni->rtabuf, ni->rtabuflen, attridx);
-}
-
-// name must be at least IFNAMSIZ bytes, or better yet sizeof(ni->name). this
-// has been validated as safe to copy into char[IFNAMSIZ] (i.e. you'll
-// definitely get a NUL terminator), unlike netstack_iface_attr(IFLA_NAME).
-static inline char*
-netstack_iface_name(const netstack_iface* ni, char* name){
-  return strcpy(name, ni->name);
-}
-
-// pass in the maximum number of bytes available for copying the link-layer
-// address. if this is sufficient, the actual number of bytes copied will be
-// stored to this variable. otherwise, NULL will be returned.
-static inline void*
-netstack_iface_lladdr(const netstack_iface* ni, void* buf, size_t* len){
-  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_ADDRESS);
-  if(rta == NULL || *len < RTA_PAYLOAD(rta)){
-    return NULL;
-  }
-  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
-  return buf;
-}
-
-static inline uint32_t
-netstack_iface_mtu(const netstack_iface* ni){
-  const struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
-  uint32_t ret;
-  if(attr){
-    if(RTA_PAYLOAD(attr) != sizeof(ret)){
-      return 0;
-    }
-    memcpy(&ret, RTA_DATA(attr), RTA_PAYLOAD(attr));
-  }else{
-    ret = 0;
-  }
-  return ret;
-}
+const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int attridx);
+char* netstack_iface_name(const struct netstack_iface* ni, char* name);
+uint32_t netstack_iface_mtu(const struct netstack_iface* ni);
+void* netstack_iface_lladdr(const struct netstack_iface* ni, void* buf, size_t* len);
+int netstack_iface_type(const struct netstack_iface* ni);
+int netstack_iface_index(const struct netstack_iface* ni);
 
 typedef struct netstack_addr {
   struct ifaddrmsg ifa;
@@ -263,7 +198,7 @@ typedef enum {
 // Callback types for various events. Even though routes, addresses etc. can be
 // reached through a netstack_iface object, they each get their own type of
 // callback.
-typedef void (*netstack_iface_cb)(const netstack_iface*, netstack_event_e, void*);
+typedef void (*netstack_iface_cb)(const struct netstack_iface*, netstack_event_e, void*);
 typedef void (*netstack_addr_cb)(const netstack_addr*, netstack_event_e, void*);
 typedef void (*netstack_route_cb)(const netstack_route*, netstack_event_e, void*);
 typedef void (*netstack_neigh_cb)(const netstack_neigh*, netstack_event_e, void*);
@@ -291,23 +226,23 @@ int netstack_destroy(struct netstack* ns);
 // Take a reference on some netstack iface for read-only use in the client.
 // There is no copy, but the object still needs to be freed by a call to
 // netstack_iface_abandon().
-const netstack_iface* netstack_iface_share_byname(struct netstack* ns, const char* name);
-const netstack_iface* netstack_iface_share_byidx(struct netstack* ns, int idx);
+const struct netstack_iface* netstack_iface_share_byname(struct netstack* ns, const char* name);
+const struct netstack_iface* netstack_iface_share_byidx(struct netstack* ns, int idx);
 
 // Copy out a netstack iface for arbitrary use in the client. This is a
 // heavyweight copy, and must be freed using netstack_iface_destroy(). You
 // would usually be better served by netstack_iface_share_*().
-netstack_iface* netstack_iface_copy_byname(struct netstack* ns, const char* name);
-netstack_iface* netstack_iface_copy_byidx(struct netstack* ns, int idx);
+struct netstack_iface* netstack_iface_copy_byname(struct netstack* ns, const char* name);
+struct netstack_iface* netstack_iface_copy_byidx(struct netstack* ns, int idx);
 
 // Release a netstack_iface acquired from the netstack through either a copy or
 // a share operation. Note that while the signature claims constness, ns will
 // actually presumably be mutated (via alias). It is thus imperative that the
 // passed object not be used again by the caller!
-void netstack_iface_abandon(const netstack_iface* ns);
+void netstack_iface_abandon(const struct netstack_iface* ns);
 
 // Print human-readable object summaries to the specied FILE*. -1 on error.
-int netstack_print_iface(const netstack_iface* ni, FILE* out);
+int netstack_print_iface(const struct netstack_iface* ni, FILE* out);
 int netstack_print_addr(const netstack_addr* na, FILE* out);
 int netstack_print_route(const netstack_route* nr, FILE* out);
 int netstack_print_neigh(const netstack_neigh* nn, FILE* out);
@@ -324,7 +259,7 @@ netstack_event_str(netstack_event_e etype){
 // These wrappers have type signatures suitable for use as netstack callbacks.
 // The curry must be a valid FILE*.
 static inline void
-vnetstack_print_iface(const netstack_iface* ni, netstack_event_e etype, void* vf){
+vnetstack_print_iface(const struct netstack_iface* ni, netstack_event_e etype, void* vf){
   FILE* f = (FILE*)vf;
   fprintf(f, "%s ", netstack_event_str(etype));
   netstack_print_iface(ni, f);

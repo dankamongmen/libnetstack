@@ -41,15 +41,18 @@ l2addrstr(int l2type, size_t len, const void* addr){
   return l2ntop(addr, slen, len, ret);
 }
 
-int netstack_print_iface(const netstack_iface* ni, FILE* out){
+int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
   int ret = 0;
   const struct rtattr* llrta = netstack_iface_attr(ni, IFLA_ADDRESS);
   char* llstr = NULL;
   if(llrta){
-    llstr = l2addrstr(ni->ifi.ifi_type, RTA_PAYLOAD(llrta), RTA_DATA(llrta));
+    llstr = l2addrstr(netstack_iface_type(ni), RTA_PAYLOAD(llrta),
+                      RTA_DATA(llrta));
   }
-  ret = fprintf(out, "%3d [%s] %s%smtu %u\n", ni->ifi.ifi_index,
-                ni->name, llstr ? llstr : "", llstr ? " " : "\0",
+  char name[IFNAMSIZ];
+  ret = fprintf(out, "%3d [%s] %s%smtu %u\n", netstack_iface_type(ni),
+                netstack_iface_name(ni, name),
+                llstr ? llstr : "", llstr ? " " : "",
                 netstack_iface_mtu(ni));
   free(llstr);
   if(ret < 0){
