@@ -164,9 +164,8 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
       ni->unknown_attrs = true;
       return true;
   }
-  if(ni->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
-    ni->rta_indexed[rta->rta_type] =
-      (const struct rtattr*)(((const char*)ni->rtabuf) + rtaoff);
+  if(ni->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
+    ni->rta_index[rta->rta_type] = rtaoff;
   }
   return true;
 }
@@ -195,9 +194,8 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
       na->unknown_attrs = true;
       return true;
   }
-  if(na->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
-    na->rta_indexed[rta->rta_type] =
-      (const struct rtattr*)(((const char*)na->rtabuf) + rtaoff);
+  if(na->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
+    na->rta_index[rta->rta_type] = rtaoff;
   }
   return true;
 }
@@ -247,9 +245,8 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
       nr->unknown_attrs = true;
       return true;
   }
-  if(nr->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
-    nr->rta_indexed[rta->rta_type] =
-      (const struct rtattr*)(((const char*)nr->rtabuf) + rtaoff);
+  if(nr->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
+    nr->rta_index[rta->rta_type] = rtaoff;
   }
   return true;
 }
@@ -281,9 +278,8 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
       nn->unknown_attrs = true;
       return true;
   }
-  if(nn->rta_indexed[rta->rta_type] == NULL){ // shouldn't see attrs twice
-    nn->rta_indexed[rta->rta_type] =
-      (const struct rtattr*)(((const char*)nn->rtabuf) + rtaoff);
+  if(nn->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
+    nn->rta_index[rta->rta_type] = rtaoff;
   }
   return true;
 }
@@ -320,10 +316,11 @@ memdup(const void* v, size_t n){
 
 static inline struct rtattr*
 rtas_dup(const struct rtattr* rtas, int rlen,
-         const struct rtattr* rta_indexed[], size_t rtamax){
+         size_t* rta_index, size_t rtamax){
   struct rtattr* ret = memdup(rtas, rlen);
+  // we needn't recompute this table, since it's all relative offsets
   if(ret){
-    memset(rta_indexed, 0, sizeof(*rta_indexed) * rtamax);
+    memset(rta_index, 0, sizeof(*rta_index) * rtamax);
   }
   return ret;
 }
@@ -334,8 +331,8 @@ create_iface(const struct rtattr* rtas, int rlen){
   ni = malloc(sizeof(*ni));
   memset(ni, 0, sizeof(*ni));
   atomic_init(&ni->refcount, 1);
-  ni->rtabuf = rtas_dup(rtas, rlen, ni->rta_indexed,
-                        sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed));
+  ni->rtabuf = rtas_dup(rtas, rlen, ni->rta_index,
+                        sizeof(ni->rta_index) / sizeof(*ni->rta_index));
   return ni;
 }
 
@@ -349,8 +346,8 @@ create_addr(const struct rtattr* rtas, int rlen){
   netstack_addr* na;
   na = malloc(sizeof(*na));
   memset(na, 0, sizeof(*na));
-  na->rtabuf = rtas_dup(rtas, rlen, na->rta_indexed,
-                        sizeof(na->rta_indexed) / sizeof(*na->rta_indexed));
+  na->rtabuf = rtas_dup(rtas, rlen, na->rta_index,
+                        sizeof(na->rta_index) / sizeof(*na->rta_index));
   return na;
 }
 
@@ -364,8 +361,8 @@ create_route(const struct rtattr* rtas, int rlen){
   netstack_route* nr;
   nr = malloc(sizeof(*nr));
   memset(nr, 0, sizeof(*nr));
-  nr->rtabuf = rtas_dup(rtas, rlen, nr->rta_indexed,
-                        sizeof(nr->rta_indexed) / sizeof(*nr->rta_indexed));
+  nr->rtabuf = rtas_dup(rtas, rlen, nr->rta_index,
+                        sizeof(nr->rta_index) / sizeof(*nr->rta_index));
   return nr;
 }
 
@@ -379,8 +376,8 @@ create_neigh(const struct rtattr* rtas, int rlen){
   netstack_neigh* nn;
   nn = malloc(sizeof(*nn));
   memset(nn, 0, sizeof(*nn));
-  nn->rtabuf = rtas_dup(rtas, rlen, nn->rta_indexed,
-                        sizeof(nn->rta_indexed) / sizeof(*nn->rta_indexed));
+  nn->rtabuf = rtas_dup(rtas, rlen, nn->rta_index,
+                        sizeof(nn->rta_index) / sizeof(*nn->rta_index));
   return nn;
 }
 

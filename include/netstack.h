@@ -29,27 +29,28 @@ struct netstack;
 
 // each of these types corresponds to a different rtnetlink message type. we
 // copy the payload directly from the netlink message to rtabuf, but that form
-// requires o(n) to get to any given attribute. we store a table of o(1)
-// pointers into this buffer at rta_indexed. if we're running on a newer
-// kernel, we might get an attribute larger than we're prepared to handle.
-// that's fine; interested parties can still extract it using rtnetlink(3)
-// macros. the convenience functions netstack_*_attr() are provided for this
-// purpose: each will retrieve the value via lookup if less than the MAX
-// against which we were compiled, and do an o(n) check otherwise.
+// requires o(n) to get to any given attribute. we store a table of n offsets
+// into this buffer at rta_index. if we're running on a newer kernel, we might
+// get an attribute larger than we're prepared to handle. that's fine.
+// interested parties can still extract it using rtnetlink(3) macros. the
+// convenience functions netstack_*_attr() are provided for this purpose: each
+// will retrieve the value via lookup if less than the MAX against which we
+// were compiled, and do an o(n) check otherwise.
 typedef struct netstack_iface {
   struct ifinfomsg ifi;
   char name[IFNAMSIZ]; // NUL-terminated, safely processed from IFLA_NAME
   struct rtattr* rtabuf; // copied directly from message
   size_t rtabuflen; // number of bytes copied to rtabuf
   // set up before invoking the user callback, these allow for o(1) index into
-  // rtabuf by attr type. NULL if that attr wasn't in the message.
-  const struct rtattr* rta_indexed[__IFLA_MAX];
+  // rtabuf by attr type. NULL if that attr wasn't in the message. We use
+  // offsets rather than pointers lest deep copy require recomputing the index.
+  size_t rta_index[__IFLA_MAX];
   bool unknown_attrs; // are there attrs >= __IFLA_MAX?
   struct netstack_iface* hnext; // next in the idx-hashed table ns->iface_slots
   atomic_int refcount; // netstack and/or client(s) can share objects
 } netstack_iface;
 
-static inline const struct rtattr *
+static inline const struct rtattr*
 netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
   while(RTA_OK(rtabuf, rlen)){
     if(rtabuf->rta_type == rtype){
@@ -60,13 +61,18 @@ netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
   return NULL;
 }
 
-static inline const struct rtattr *
+static inline const struct rtattr*
+index_into_rta(const struct rtattr* rtabuf, size_t offset){
+  return (const struct rtattr*)(((char*)rtabuf) + offset);
+}
+
+static inline const struct rtattr*
 netstack_iface_attr(const netstack_iface* ni, int attridx){
   if(attridx < 0){
     return NULL;
   }
-  if((size_t)attridx < sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed)){
-    return ni->rta_indexed[attridx];
+  if((size_t)attridx < sizeof(ni->rta_index) / sizeof(*ni->rta_index)){
+    return index_into_rta(ni->rtabuf, ni->rta_index[attridx]);
   }
   if(!ni->unknown_attrs){
     return NULL;
@@ -114,7 +120,7 @@ typedef struct netstack_addr {
   struct ifaddrmsg ifa;
   struct rtattr* rtabuf;        // copied directly from message
   size_t rtabuflen;
-  const struct rtattr* rta_indexed[__IFA_MAX];
+  size_t rta_index[__IFA_MAX];
   bool unknown_attrs;  // are there attrs >= __IFA_MAX?
 } netstack_addr;
 
@@ -123,8 +129,8 @@ netstack_addr_attr(const netstack_addr* na, int attridx){
   if(attridx < 0){
     return NULL;
   }
-  if((size_t)attridx < sizeof(na->rta_indexed) / sizeof(*na->rta_indexed)){
-    return na->rta_indexed[attridx];
+  if((size_t)attridx < sizeof(na->rta_index) / sizeof(*na->rta_index)){
+    return index_into_rta(na->rtabuf, na->rta_index[attridx]);
   }
   if(!na->unknown_attrs){
     return NULL;
@@ -136,7 +142,7 @@ typedef struct netstack_route {
   struct rtmsg rt;
   struct rtattr* rtabuf;        // copied directly from message
   size_t rtabuflen;
-  const struct rtattr* rta_indexed[__RTA_MAX];
+  size_t rta_index[__RTA_MAX];
   bool unknown_attrs;  // are there attrs >= __RTA_MAX?
 } netstack_route;
 
@@ -145,8 +151,8 @@ netstack_route_attr(const netstack_route* nr, int attridx){
   if(attridx < 0){
     return NULL;
   }
-  if((size_t)attridx < sizeof(nr->rta_indexed) / sizeof(*nr->rta_indexed)){
-    return nr->rta_indexed[attridx];
+  if((size_t)attridx < sizeof(nr->rta_index) / sizeof(*nr->rta_index)){
+    return index_into_rta(nr->rtabuf, nr->rta_index[attridx]);
   }
   if(!nr->unknown_attrs){
     return NULL;
@@ -226,7 +232,7 @@ typedef struct netstack_neigh {
   struct ndmsg nd;
   struct rtattr* rtabuf;        // copied directly from message
   size_t rtabuflen;
-  const struct rtattr* rta_indexed[__NDA_MAX];
+  size_t rta_index[__NDA_MAX];
   bool unknown_attrs;  // are there attrs >= __NDA_MAX?
 } netstack_neigh;
 
@@ -235,8 +241,8 @@ netstack_neigh_attr(const netstack_neigh* nn, int attridx){
   if(attridx < 0){
     return NULL;
   }
-  if((size_t)attridx < sizeof(nn->rta_indexed) / sizeof(*nn->rta_indexed)){
-    return nn->rta_indexed[attridx];
+  if((size_t)attridx < sizeof(nn->rta_index) / sizeof(*nn->rta_index)){
+    return index_into_rta(nn->rtabuf, nn->rta_index[attridx]);
   }
   if(!nn->unknown_attrs){
     return NULL;
