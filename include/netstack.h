@@ -261,7 +261,6 @@ typedef struct netstack_opts {
   // refrain from launching a thread to handle netlink events in the
   // background. caller will need to handle nonblocking I/O.
   bool no_thread;
-  // if a given callback is NULL, the default will be used (print to stdout).
   // a given curry may be non-NULL only if the corresponding cb is also NULL.
   netstack_iface_cb iface_cb;
   void* iface_curry;
@@ -282,10 +281,51 @@ int netstack_destroy(struct netstack* ns);
 netstack_iface* netstack_iface_copy_byname(const struct netstack* ns, const char* name);
 netstack_iface* netstack_iface_copy_byidx(const struct netstack* ns, int idx);
 
+// Print human-readable object summaries to the specied FILE*. -1 on error.
 int netstack_print_iface(const netstack_iface* ni, FILE* out);
 int netstack_print_addr(const netstack_addr* na, FILE* out);
 int netstack_print_route(const netstack_route* nr, FILE* out);
 int netstack_print_neigh(const netstack_neigh* nn, FILE* out);
+
+static inline const char*
+netstack_event_str(netstack_event_e etype){
+  switch(etype){
+    case NETSTACK_NEW: return "new";
+    case NETSTACK_MOD: return "mod";
+    case NETSTACK_DEL: return "del";
+    default: return "???";
+  }
+}
+
+// These wrappers have type signatures suitable for use as netstack callbacks.
+// The curry must be a valid FILE*.
+static inline void
+vnetstack_print_iface(const netstack_iface* ni, netstack_event_e etype, void* vf){
+  FILE* f = (FILE*)vf;
+  fprintf(f, "%s ", netstack_event_str(etype));
+  netstack_print_iface(ni, f);
+}
+
+static inline void
+vnetstack_print_addr(const netstack_addr* na, netstack_event_e etype, void* vf){
+  FILE* f = (FILE*)vf;
+  fprintf(f, "%s ", netstack_event_str(etype));
+  netstack_print_addr(na, f);
+}
+
+static inline void
+vnetstack_print_route(const netstack_route* nr, netstack_event_e etype, void* vf){
+  FILE* f = (FILE*)vf;
+  fprintf(f, "%s ", netstack_event_str(etype));
+  netstack_print_route(nr, f);
+}
+
+static inline void
+vnetstack_print_neigh(const netstack_neigh* nn, netstack_event_e etype, void* vf){
+  FILE* f = (FILE*)vf;
+  fprintf(f, "%s ", netstack_event_str(etype));
+  netstack_print_neigh(nn, f);
+}
 
 // Free up a netstack_iface copied by netstack_iface_copy().
 void netstack_iface_destroy(netstack_iface* ni);

@@ -10,8 +10,17 @@ int main(void){
   sigemptyset(&sigset);
   sigaddset(&sigset, SIGTERM);
   sigaddset(&sigset, SIGINT);
-  netstack_opts nopts;
-  memset(&nopts, 0, sizeof(nopts));
+  netstack_opts nopts = {
+    .iface_cb = vnetstack_print_iface,
+    .iface_curry = stdout,
+    .addr_cb = vnetstack_print_addr,
+    .addr_curry = stdout,
+    .route_cb = vnetstack_print_route,
+    .route_curry = stdout,
+    .neigh_cb = vnetstack_print_neigh,
+    .neigh_curry = stdout,
+    .no_thread = false,
+  };
   struct netstack* ns = netstack_create(&nopts);
   if(ns == NULL){
     return EXIT_FAILURE;

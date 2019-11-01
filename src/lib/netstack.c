@@ -411,30 +411,6 @@ static inline void vfree_addr(void* va){ free_addr(va); }
 static inline void vfree_route(void* vr){ free_route(vr); }
 static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 
-static void
-vnetstack_print_iface(const netstack_iface* ni, netstack_event_e etype, void* vf){
-  (void)etype;
-  netstack_print_iface(ni, vf);
-}
-
-static void
-vnetstack_print_addr(const netstack_addr* na, netstack_event_e etype, void* vf){
-  (void)etype;
-  netstack_print_addr(na, vf);
-}
-
-static void
-vnetstack_print_route(const netstack_route* nr, netstack_event_e etype, void* vf){
-  (void)etype;
-  netstack_print_route(nr, vf);
-}
-
-static void
-vnetstack_print_neigh(const netstack_neigh* nn, netstack_event_e etype, void* vf){
-  (void)etype;
-  netstack_print_neigh(nn, vf);
-}
-
 #ifndef NDA_RTA
 #define NDA_RTA(r) \
  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ndmsg))))
@@ -659,22 +635,6 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     memcpy(&ns->opts, opts, sizeof(*opts));
   }else{
     memset(&ns->opts, 0, sizeof(ns->opts));
-  }
-  if(ns->opts.iface_cb == NULL){
-    ns->opts.iface_cb = vnetstack_print_iface;
-    ns->opts.iface_curry = stdout;
-  }
-  if(ns->opts.addr_cb == NULL){
-    ns->opts.addr_cb = vnetstack_print_addr;
-    ns->opts.addr_curry = stdout;
-  }
-  if(ns->opts.route_cb == NULL){
-    ns->opts.route_cb = vnetstack_print_route;
-    ns->opts.route_curry = stdout;
-  }
-  if(ns->opts.neigh_cb == NULL){
-    ns->opts.neigh_cb = vnetstack_print_neigh;
-    ns->opts.neigh_curry = stdout;
   }
   return 0;
 }
