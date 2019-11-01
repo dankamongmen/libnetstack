@@ -129,9 +129,18 @@ int netstack_print_neigh(const netstack_neigh* nn, FILE* out){
   if(!l3addrstr(nn->nd.ndm_family, nnrta, nastr, sizeof(nastr))){
     return -1;
   }
+  const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
+  if(l2rta == NULL){
+    return -1;
+  }
+  char* llstr = NULL;
+  if(l2rta){
+    llstr = l2addrstr(0, RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
+  }
   int ret = 0;
-  ret = fprintf(out, "%3d [%s] %s\n", nn->nd.ndm_ifindex,
-                family_to_str(nn->nd.ndm_family), nastr);
+  ret = fprintf(out, "%3d [%s] %s %s\n", nn->nd.ndm_ifindex,
+                family_to_str(nn->nd.ndm_family), nastr, llstr);
+  free(llstr);
   if(ret < 0){
     return -1;
   }
