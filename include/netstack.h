@@ -32,6 +32,7 @@ extern "C" {
 
 struct netstack;
 struct netstack_iface;
+struct netstack_neigh;
 
 static inline const struct rtattr*
 netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
@@ -54,6 +55,10 @@ char* netstack_iface_name(const struct netstack_iface* ni, char* name);
 int netstack_iface_type(const struct netstack_iface* ni);
 int netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
+
+const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
+int netstack_neigh_family(const struct netstack_neigh* nn);
+int netstack_neigh_index(const struct netstack_neigh* nn);
 
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
@@ -195,28 +200,6 @@ netstack_route_metric(const netstack_route* nr){
   return netstack_route_intattr(nr, RTA_METRICS);
 }
 
-typedef struct netstack_neigh {
-  struct ndmsg nd;
-  struct rtattr* rtabuf;        // copied directly from message
-  size_t rtabuflen;
-  size_t rta_index[__NDA_MAX];
-  bool unknown_attrs;  // are there attrs >= __NDA_MAX?
-} netstack_neigh;
-
-static inline const struct rtattr*
-netstack_neigh_attr(const netstack_neigh* nn, int attridx){
-  if(attridx < 0){
-    return NULL;
-  }
-  if((size_t)attridx < sizeof(nn->rta_index) / sizeof(*nn->rta_index)){
-    return index_into_rta(nn->rtabuf, nn->rta_index[attridx]);
-  }
-  if(!nn->unknown_attrs){
-    return NULL;
-  }
-  return netstack_extract_rta_attr(nn->rtabuf, nn->rtabuflen, attridx);
-}
-
 typedef enum {
   NETSTACK_MOD, // a non-destructive event about an object
   NETSTACK_DEL, // an object that is going away
@@ -228,13 +211,10 @@ typedef enum {
 typedef void (*netstack_iface_cb)(const struct netstack_iface*, netstack_event_e, void*);
 typedef void (*netstack_addr_cb)(const netstack_addr*, netstack_event_e, void*);
 typedef void (*netstack_route_cb)(const netstack_route*, netstack_event_e, void*);
-typedef void (*netstack_neigh_cb)(const netstack_neigh*, netstack_event_e, void*);
+typedef void (*netstack_neigh_cb)(const struct netstack_neigh*, netstack_event_e, void*);
 
 // The default for all members is false or the appropriate zero representation.
 typedef struct netstack_opts {
-  // refrain from launching a thread to handle netlink events in the
-  // background. caller will need to handle nonblocking I/O.
-  bool no_thread;
   // a given curry may be non-NULL only if the corresponding cb is also NULL.
   netstack_iface_cb iface_cb;
   void* iface_curry;
@@ -244,6 +224,11 @@ typedef struct netstack_opts {
   void* route_curry;
   netstack_neigh_cb neigh_cb;
   void* neigh_curry;
+  int initial_events; // policy regarding initial object enumeration events:
+                      // one of NETSTACK_INITIAL_EVENTS_{ASYNC, BLOCK, NONE}
+  // refrain from launching a thread to handle netlink events in the
+  // background. caller will need to handle nonblocking I/O. not yet used FIXME
+  bool no_thread;
 } netstack_opts;
 
 // Opts may be NULL, in which case the defaults will be used.
@@ -272,7 +257,7 @@ void netstack_iface_abandon(const struct netstack_iface* ns);
 int netstack_print_iface(const struct netstack_iface* ni, FILE* out);
 int netstack_print_addr(const netstack_addr* na, FILE* out);
 int netstack_print_route(const netstack_route* nr, FILE* out);
-int netstack_print_neigh(const netstack_neigh* nn, FILE* out);
+int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out);
 
 static inline const char*
 netstack_event_str(netstack_event_e etype){
@@ -307,7 +292,7 @@ vnetstack_print_route(const netstack_route* nr, netstack_event_e etype, void* vf
 }
 
 static inline void
-vnetstack_print_neigh(const netstack_neigh* nn, netstack_event_e etype, void* vf){
+vnetstack_print_neigh(const struct netstack_neigh* nn, netstack_event_e etype, void* vf){
   FILE* f = (FILE*)vf;
   fprintf(f, "%s ", netstack_event_str(etype));
   netstack_print_neigh(nn, f);

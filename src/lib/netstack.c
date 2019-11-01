@@ -41,6 +41,14 @@ typedef struct netstack_iface {
   atomic_int refcount; // netstack and/or client(s) can share objects
 } netstack_iface;
 
+typedef struct netstack_neigh {
+  struct ndmsg nd;
+  struct rtattr* rtabuf;        // copied directly from message
+  size_t rtabuflen;
+  size_t rta_index[__NDA_MAX];
+  bool unknown_attrs;  // are there attrs >= __NDA_MAX?
+} netstack_neigh;
+
 typedef struct netstack {
   struct nl_sock* nl;  // netlink connection abstraction from libnl
   pthread_t rxtid;
@@ -837,6 +845,19 @@ const struct rtattr* netstack_iface_attr(const netstack_iface* ni, int attridx){
   return netstack_extract_rta_attr(ni->rtabuf, ni->rtabuflen, attridx);
 }
 
+const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(nn->rta_index) / sizeof(*nn->rta_index)){
+    return index_into_rta(nn->rtabuf, nn->rta_index[attridx]);
+  }
+  if(!nn->unknown_attrs){
+    return NULL;
+  }
+  return netstack_extract_rta_attr(nn->rtabuf, nn->rtabuflen, attridx);
+}
+
 // name must be at least IFNAMSIZ bytes, or better yet sizeof(ni->name). this
 // has been validated as safe to copy into char[IFNAMSIZ] (i.e. you'll
 // definitely get a NUL terminator), unlike netstack_iface_attr(IFLA_NAME).
@@ -854,4 +875,12 @@ int netstack_iface_family(const netstack_iface* ni){
 
 int netstack_iface_index(const netstack_iface* ni){
   return ni->ifi.ifi_index;
+}
+
+int netstack_neigh_index(const netstack_neigh* nn){
+  return nn->nd.ndm_ifindex;
+}
+
+int netstack_neigh_family(const netstack_neigh* nn){
+  return nn->nd.ndm_family;
 }

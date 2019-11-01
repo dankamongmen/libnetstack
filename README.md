@@ -39,7 +39,7 @@ First, a `struct netstack` must be created using `netstack_create()`. It
 accepts a `netstack_opts` structure for configuration, including specification
 of callbacks. On failure, NULL is returned. A program may have an many
 netstacks as it likes, though I don't personally see much point in more than
-one in a process.
+one in a process. This does not require any special privileges.
 
 ```
 struct netstack* netstack_create(const netstack_opts* opts);
@@ -57,6 +57,21 @@ does not happen in the current implementation, it might in the future).
 Ordering between different objects is not necessarily preserved, but events
 for the same object ("same" meaning "same lookup key", see below) are
 serialized.
+
+### Initial enumeration events
+
+By default, upon creation of a `netstack` all objects will be enumerated,
+resulting in a slew of events. This behavior can be changed with the
+`initial_events` field in `network_opts`:
+
+* `NETSTACK_INITIAL_EVENTS_ASYNC`: The default. Upon creation, objects will be
+  enumerated, but `netstack_create()` will return after sending the necessary
+  requests. Events might arrive before or after `netstack_create()` returns.
+* `NETSTACK_INITIAL_EVENTS_BLOCK`: Don't return from `netstack_create()` until
+  all objects have been enumerated. If used, the cache may be safely
+  interrogated once `netstack_create()` returns. Otherwise, existing objects
+  might not show up for a short time.
+* `NETSTACK_INITIAL_EVENTS_NONE`: Don't perform the initial enumeration.
 
 ### Object types
 
@@ -97,9 +112,6 @@ the curry must also be NULL.
 ```
 // The default for all members is false or the appropriate zero representation.
 typedef struct netstack_opts {
-  // refrain from launching a thread to handle netlink events in the
-  // background. caller will need to handle nonblocking I/O.
-  bool no_thread;
   // a given curry may be non-NULL only if the corresponding cb is also NULL.
   netstack_iface_cb iface_cb;
   void* iface_curry;
@@ -109,6 +121,11 @@ typedef struct netstack_opts {
   void* route_curry;
   netstack_neigh_cb neigh_cb;
   void* neigh_curry;
+  int initial_events; // policy regarding initial object enumeration events:
+                      // one of NETSTACK_INITIAL_EVENTS_{ASYNC, BLOCK, NONE}
+  // refrain from launching a thread to handle netlink events in the
+  // background. caller will need to handle nonblocking I/O. not yet used FIXME
+  bool no_thread;
 } netstack_opts;
 ```
 

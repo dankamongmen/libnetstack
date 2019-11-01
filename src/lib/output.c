@@ -127,13 +127,14 @@ int netstack_print_route(const netstack_route* nr, FILE* out){
   return 0;
 }
 
-int netstack_print_neigh(const netstack_neigh* nn, FILE* out){
+int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out){
   const struct rtattr* nnrta = netstack_neigh_attr(nn, NDA_DST);
   if(nnrta == NULL){
     return -1;
   }
+  unsigned family = netstack_neigh_family(nn);
   char nastr[INET6_ADDRSTRLEN];
-  if(!l3addrstr(nn->nd.ndm_family, nnrta, nastr, sizeof(nastr))){
+  if(!l3addrstr(family, nnrta, nastr, sizeof(nastr))){
     return -1;
   }
   int ret = 0;
@@ -143,12 +144,12 @@ int netstack_print_neigh(const netstack_neigh* nn, FILE* out){
     if(!llstr){
       return -1;
     }
-    ret = fprintf(out, "%3d [%s] %s %s\n", nn->nd.ndm_ifindex,
-                  family_to_str(nn->nd.ndm_family), nastr, llstr);
+    ret = fprintf(out, "%3d [%s] %s %s\n", netstack_neigh_index(nn),
+                  family_to_str(family), nastr, llstr);
     free(llstr);
   }else{
-    ret = fprintf(out, "%3d [%s] %s\n", nn->nd.ndm_ifindex,
-                  family_to_str(nn->nd.ndm_family), nastr);
+    ret = fprintf(out, "%3d [%s] %s\n", netstack_neigh_index(nn),
+                  family_to_str(family), nastr);
   }
   if(ret < 0){
     return -1;
