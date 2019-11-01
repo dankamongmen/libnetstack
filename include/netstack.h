@@ -5,11 +5,16 @@
 #include <net/if.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdatomic.h>
 #include <linux/rtnetlink.h>
 
 #ifdef __cplusplus
+// see http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0943r3.html
+#include <atomic>
+#define _Atomic(T) std::atomic<T>
+using std::atomic_int;
 extern "C" {
+#else
+#include <stdatomic.h>
 #endif
 
 // Libnetstack provides an interface to the rtnetlink(7) functionality of the
