@@ -32,8 +32,10 @@ typedef struct netstack {
   pthread_cond_t txcond;
   pthread_mutex_t txlock;
   atomic_bool clear_to_send;
-  netstack_opts opts; // copied wholesale in netstack_create()
+  // Guards iface_hash and the hnext pointer of all netstack_ifaces
+  pthread_mutex_t hashlock;
   netstack_iface* iface_hash[IFACE_HASH_SLOTS];
+  netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
 
 // Sits on blocking nl_recvmsgs()
@@ -608,18 +610,25 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     nl_socket_free(ns->nl);
     return -1;
   }
+  if(pthread_mutex_init(&ns->hashlock, NULL)){
+    nl_socket_free(ns->nl);
+    return -1;
+  }
   if(pthread_mutex_init(&ns->txlock, NULL)){
+    pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
   }
   if(pthread_cond_init(&ns->txcond, NULL)){
     pthread_mutex_destroy(&ns->txlock);
+    pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
   }
   if(pthread_create(&ns->rxtid, NULL, netstack_rx_thread, ns)){
     pthread_cond_destroy(&ns->txcond);
     pthread_mutex_destroy(&ns->txlock);
+    pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
   }
@@ -628,6 +637,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     pthread_join(ns->txtid, NULL);
     pthread_cond_destroy(&ns->txcond);
     pthread_mutex_destroy(&ns->txlock);
+    pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
   }
@@ -659,15 +669,22 @@ int netstack_destroy(netstack* ns){
     }else{
       ret = -1;
     }
+    nl_socket_free(ns->nl);
     ret |= pthread_cond_destroy(&ns->txcond);
     ret |= pthread_mutex_destroy(&ns->txlock);
-    nl_socket_free(ns->nl);
+    ret |= pthread_mutex_destroy(&ns->hashlock);
     free(ns);
   }
   return ret;
 }
 
-netstack_iface* netstack_iface_copy_byname(const netstack* ns, const char* name){
+netstack_iface* netstack_iface_copy_byname(netstack* ns, const char* name){
+  netstack_iface* ni;
+  (void)ns; (void)name; ni = NULL; // FIXME
+  return ni;
+}
+
+const netstack_iface* netstack_iface_share_byname(netstack* ns, const char* name){
   netstack_iface* ni;
   (void)ns; (void)name; ni = NULL; // FIXME
   return ni;
@@ -689,9 +706,25 @@ netstack_iface_byidx(const netstack* ns, int idx){
   return ni;
 }
 
-netstack_iface* netstack_iface_copy_byidx(const netstack* ns, int idx){
+netstack_iface* netstack_iface_copy_byidx(netstack* ns, int idx){
+  netstack_iface* ret;
+  pthread_mutex_lock(&ns->hashlock);
   netstack_iface* ni = netstack_iface_byidx(ns, idx);
-  netstack_iface* ret = create_iface(ni->rtabuf, ni->rtabuflen);
-  // FIXME populate new indices
+  if(ni){
+    ret = create_iface(ni->rtabuf, ni->rtabuflen);
+  }else{
+    ret = NULL;
+  }
+  pthread_mutex_unlock(&ns->hashlock);
   return ret;
+}
+
+const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
+  pthread_mutex_lock(&ns->hashlock);
+  netstack_iface* ni = netstack_iface_byidx(ns, idx);
+  if(ni){
+    // FIXME
+  }
+  pthread_mutex_unlock(&ns->hashlock);
+  return ni;
 }
