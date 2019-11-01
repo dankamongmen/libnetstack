@@ -245,8 +245,7 @@ netstack_neigh_attr(const netstack_neigh* nn, int attridx){
 }
 
 typedef enum {
-  NETSTACK_NEW, // an object that is new to us (new primary key, index usually)
-  NETSTACK_MOD, // an object we already knew about, and is still around
+  NETSTACK_MOD, // a non-destructive event about an object
   NETSTACK_DEL, // an object that is going away
 } netstack_event_e;
 
@@ -305,7 +304,6 @@ int netstack_print_neigh(const netstack_neigh* nn, FILE* out);
 static inline const char*
 netstack_event_str(netstack_event_e etype){
   switch(etype){
-    case NETSTACK_NEW: return "new";
     case NETSTACK_MOD: return "mod";
     case NETSTACK_DEL: return "del";
     default: return "???";

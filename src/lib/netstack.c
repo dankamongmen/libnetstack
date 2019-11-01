@@ -434,23 +434,24 @@ static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 #endif
 
 static inline void
-viface_cb(const netstack* ns, const void* vni){
-  ns->opts.iface_cb(vni, NETSTACK_NEW, ns->opts.iface_curry);
+viface_cb(const netstack* ns, netstack_event_e etype, const void* vni){
+  ns->opts.iface_cb(vni, etype, ns->opts.iface_curry);
+  // FIXME update our cache
 }
 
 static inline void
-vaddr_cb(const netstack* ns, const void* vna){
-  ns->opts.addr_cb(vna, NETSTACK_NEW, ns->opts.addr_curry);
+vaddr_cb(const netstack* ns, netstack_event_e etype, const void* vna){
+  ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
 }
 
 static inline void
-vroute_cb(const netstack* ns, const void* vnr){
-  ns->opts.route_cb(vnr, NETSTACK_NEW, ns->opts.route_curry);
+vroute_cb(const netstack* ns, netstack_event_e etype, const void* vnr){
+  ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
 }
 
 static inline void
-vneigh_cb(const netstack* ns, const void* vnn){
-  ns->opts.neigh_cb(vnn, NETSTACK_NEW, ns->opts.neigh_curry);
+vneigh_cb(const netstack* ns, netstack_event_e etype, const void* vnn){
+  ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
 }
 
 static int
@@ -469,11 +470,13 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     // processor for rtattr objects in this type regime. takes the newly-created
     // netstack_* object (newobj), the leading type-dependent object (aliased
     // by hdr), the offset of the RTA being handled, and &rlen.
-    bool (*pfxn)(void*, const void*, size_t, int*) = NULL;
-    void (*dfxn)(void*) = NULL; // destroyer of this type of object
-    void (*cfxn)(const netstack*, const void*) = NULL; // user callback
-    void* (*gfxn)(const struct rtattr*, int) = NULL; // constructor
+    bool (*pfxn)(void*, const void*, size_t, int*);
+    void (*dfxn)(void*); // destroyer of this type of object
+    void (*cfxn)(const netstack*, netstack_event_e, const void*); // action end
+    void* (*gfxn)(const struct rtattr*, int); // constructor
+    netstack_event_e etype;
     switch(ntype){
+      case RTM_DELLINK: // intentional fallthrough
       case RTM_NEWLINK:
         hdr = ifi;
         rta = IFLA_RTA(ifi);
@@ -482,7 +485,9 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         dfxn = vfree_iface;
         cfxn = viface_cb;
         gfxn = vcreate_iface;
+        etype = (ntype == RTM_DELLINK) ? NETSTACK_DEL : NETSTACK_MOD;
         break;
+      case RTM_DELADDR: // intentional fallthrough
       case RTM_NEWADDR:
         hdr = ifa;
         rta = IFA_RTA(ifa);
@@ -491,7 +496,9 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         dfxn = vfree_addr;
         cfxn = vaddr_cb;
         gfxn = vcreate_addr;
+        etype = (ntype == RTM_DELADDR) ? NETSTACK_DEL : NETSTACK_MOD;
         break;
+      case RTM_DELROUTE: // intentional fallthrough
       case RTM_NEWROUTE:
         hdr = rt;
         rta = RTM_RTA(rt);
@@ -500,7 +507,9 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         dfxn = vfree_route;
         cfxn = vroute_cb;
         gfxn = vcreate_route;
+        etype = (ntype == RTM_DELROUTE) ? NETSTACK_DEL : NETSTACK_MOD;
         break;
+      case RTM_DELNEIGH: // intentional fallthrough
       case RTM_NEWNEIGH:
         hdr = nd;
         rta = NDA_RTA(nd);
@@ -509,6 +518,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
         dfxn = vfree_neigh;
         cfxn = vneigh_cb;
         gfxn = vcreate_neigh;
+        etype = (ntype == RTM_DELNEIGH) ? NETSTACK_DEL : NETSTACK_MOD;
         break;
       default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
     }
@@ -519,6 +529,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
     // FIXME factor all of this out probably
     int rlen = nlen - NLMSG_LENGTH(hdrsize);
     void* newobj = gfxn(rta, rlen);
+    // always there is an RTA extraction pfxn
     while(RTA_OK(riter, rlen)){
       if(!pfxn(newobj, hdr, (char*)riter - (char*)rta, &rlen)){
         break;
@@ -530,7 +541,7 @@ msg_handler_internal(struct nl_msg* msg, const netstack* ns){
       fprintf(stderr, "Netlink attr was invalid, %db left\n", rlen);
       return NL_SKIP;
     }
-    cfxn(ns, newobj);
+    cfxn(ns, etype, newobj);
     dfxn(newobj); // FIXME keep it cached
     nhdr = nlmsg_next(nhdr, &nlen);
   }
