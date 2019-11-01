@@ -39,5 +39,6 @@ int main(void){
   if(netstack_destroy(ns)){
     return EXIT_FAILURE;
   }
+  printf("Done!\n");
   return EXIT_SUCCESS;
 }

@@ -387,10 +387,11 @@ create_neigh(const struct rtattr* rtas, int rlen){
 static inline void*
 vcreate_neigh(const struct rtattr* rtas, int rlen){ return create_neigh(rtas, rlen); }
 
-void netstack_iface_destroy(netstack_iface* ni){
+static void
+netstack_iface_destroy(netstack_iface* ni){
   if(ni){
     int refs = atomic_fetch_sub(&ni->refcount, 1);
-    if(refs == 0){
+    if(refs <= 1){
       free(ni->rtabuf);
       free(ni);
     }
