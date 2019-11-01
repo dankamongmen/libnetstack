@@ -734,6 +734,21 @@ netstack* netstack_create(const netstack_opts* nopts){
   return ns;
 }
 
+// Downref all netstack_iface objects remaining in our cache. This might not
+// actually free them all; some might still be shared with the caller.
+static void
+destroy_iface_cache(netstack* ns){
+  size_t z;
+  for(z = 0 ; z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) ; ++z){
+    netstack_iface* ni = ns->iface_hash[z];
+    while(ni){
+      netstack_iface* tmp = ni->hnext;
+      netstack_iface_destroy(ni);
+      ni = tmp;
+    }
+  }
+}
+
 int netstack_destroy(netstack* ns){
   int ret = 0;
   if(ns){
@@ -747,6 +762,7 @@ int netstack_destroy(netstack* ns){
     ret |= pthread_cond_destroy(&ns->txcond);
     ret |= pthread_mutex_destroy(&ns->txlock);
     ret |= pthread_mutex_destroy(&ns->hashlock);
+    destroy_iface_cache(ns);
     free(ns);
   }
   return ret;
