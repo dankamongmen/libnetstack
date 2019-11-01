@@ -50,7 +50,7 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
                       RTA_DATA(llrta));
   }
   char name[IFNAMSIZ];
-  ret = fprintf(out, "%3d [%s] %u %s%smtu %u\n", netstack_iface_family(ni),
+  ret = fprintf(out, "%3d [%s] %u %s%smtu %u\n", netstack_iface_index(ni),
                 netstack_iface_name(ni, name), netstack_iface_type(ni),
                 llstr ? llstr : "", llstr ? " " : "",
                 netstack_iface_mtu(ni));
