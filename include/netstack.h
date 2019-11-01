@@ -5,6 +5,7 @@
 #include <net/if.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <linux/rtnetlink.h>
 
 #ifdef __cplusplus
@@ -45,6 +46,7 @@ typedef struct netstack_iface {
   const struct rtattr* rta_indexed[__IFLA_MAX];
   bool unknown_attrs; // are there attrs >= __IFLA_MAX?
   struct netstack_iface* hnext; // next in the idx-hashed table ns->iface_slots
+  atomic_int refcount; // netstack and/or client(s) can share objects
 } netstack_iface;
 
 static inline const struct rtattr *

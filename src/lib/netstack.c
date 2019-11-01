@@ -32,7 +32,13 @@ typedef struct netstack {
   pthread_cond_t txcond;
   pthread_mutex_t txlock;
   atomic_bool clear_to_send;
-  // Guards iface_hash and the hnext pointer of all netstack_ifaces
+  // Guards iface_hash and the hnext pointer of all netstack_ifaces. Does not
+  // guard netstack_ifaces' reference counts *aside from* the case when we've
+  // just looked the object up, and are about to share it. We must make that
+  // change while holding the lock, to ensure it is not removed from underneath
+  // us. Clients needn't take this lock when downing the reference count, since
+  // if it hits 0 under their watch, it cannot be in the netstack hash any
+  // longer (or it would still have a reference).
   pthread_mutex_t hashlock;
   netstack_iface* iface_hash[IFACE_HASH_SLOTS];
   netstack_opts opts; // copied wholesale in netstack_create()
