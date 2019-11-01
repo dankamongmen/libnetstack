@@ -46,12 +46,12 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
   const struct rtattr* llrta = netstack_iface_attr(ni, IFLA_ADDRESS);
   char* llstr = NULL;
   if(llrta){
-    llstr = l2addrstr(netstack_iface_type(ni), RTA_PAYLOAD(llrta),
+    llstr = l2addrstr(netstack_iface_family(ni), RTA_PAYLOAD(llrta),
                       RTA_DATA(llrta));
   }
   char name[IFNAMSIZ];
-  ret = fprintf(out, "%3d [%s] %s%smtu %u\n", netstack_iface_type(ni),
-                netstack_iface_name(ni, name),
+  ret = fprintf(out, "%3d [%s] %u %s%smtu %u\n", netstack_iface_family(ni),
+                netstack_iface_name(ni, name), netstack_iface_type(ni),
                 llstr ? llstr : "", llstr ? " " : "",
                 netstack_iface_mtu(ni));
   free(llstr);

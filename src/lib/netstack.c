@@ -67,6 +67,11 @@ typedef struct netstack {
   netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
 
+static inline int
+iface_hash(const netstack* ns, int index){
+  return index % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
+}
+
 // Sits on blocking nl_recvmsgs()
 static void*
 netstack_rx_thread(void* vns){
@@ -456,11 +461,26 @@ static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 static inline void
 viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   netstack_iface* ni = vni;
-  int hidx = ni->ifi.ifi_index % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
+  // We might be replacing some previous element. If so, that one comes out of
+  // the hash as replaced, and should have its refcount dropped.
+  netstack_iface* replaced = NULL;
+  int hidx = iface_hash(ns, ni->ifi.ifi_index);
   pthread_mutex_lock(&ns->hashlock);
   ni->hnext = ns->iface_hash[hidx];
   ns->iface_hash[hidx] = ni;
+  netstack_iface** tmp = &ni->hnext;
+  while(*tmp){
+    if((*tmp)->ifi.ifi_index == ni->ifi.ifi_index){
+      replaced = *tmp;
+      *tmp = (*tmp)->hnext;
+      break;
+    }
+    tmp = &(*tmp)->hnext;
+  }
   pthread_mutex_unlock(&ns->hashlock);
+  if(replaced){
+    netstack_iface_destroy(replaced);
+  }
   if(ns->opts.iface_cb){
     ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
   }
@@ -749,7 +769,7 @@ netstack_iface_byidx(const netstack* ns, int idx){
   if(idx < 0){
     return NULL;
   }
-  int hidx = idx % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
+  int hidx = iface_hash(ns, idx);
   netstack_iface* ni = ns->iface_hash[hidx];
   while(ni){
     if(ni->ifi.ifi_index == hidx){
@@ -822,6 +842,10 @@ void* netstack_iface_lladdr(const netstack_iface* ni, void* buf, size_t* len){
 
 int netstack_iface_type(const netstack_iface* ni){
   return ni->ifi.ifi_type;
+}
+
+int netstack_iface_family(const netstack_iface* ni){
+  return ni->ifi.ifi_family;
 }
 
 int netstack_iface_index(const netstack_iface* ni){

@@ -54,6 +54,7 @@ char* netstack_iface_name(const struct netstack_iface* ni, char* name);
 uint32_t netstack_iface_mtu(const struct netstack_iface* ni);
 void* netstack_iface_lladdr(const struct netstack_iface* ni, void* buf, size_t* len);
 int netstack_iface_type(const struct netstack_iface* ni);
+int netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
 
 typedef struct netstack_addr {
