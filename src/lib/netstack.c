@@ -333,6 +333,7 @@ create_iface(const struct rtattr* rtas, int rlen){
   netstack_iface* ni;
   ni = malloc(sizeof(*ni));
   memset(ni, 0, sizeof(*ni));
+  atomic_init(&ni->refcount, 1);
   ni->rtabuf = rtas_dup(rtas, rlen, ni->rta_indexed,
                         sizeof(ni->rta_indexed) / sizeof(*ni->rta_indexed));
   return ni;
@@ -388,8 +389,11 @@ vcreate_neigh(const struct rtattr* rtas, int rlen){ return create_neigh(rtas, rl
 
 void netstack_iface_destroy(netstack_iface* ni){
   if(ni){
-    free(ni->rtabuf);
-    free(ni);
+    int refs = atomic_fetch_sub(&ni->refcount, 1);
+    if(refs == 0){
+      free(ni->rtabuf);
+      free(ni);
+    }
   }
 }
 
@@ -729,7 +733,7 @@ const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
   pthread_mutex_lock(&ns->hashlock);
   netstack_iface* ni = netstack_iface_byidx(ns, idx);
   if(ni){
-    // FIXME
+    atomic_fetch_add(&ni->refcount, 1);
   }
   pthread_mutex_unlock(&ns->hashlock);
   return ni;
