@@ -499,6 +499,7 @@ vaddr_cb(netstack* ns, netstack_event_e etype, void* vna){
   if(ns->opts.addr_cb){
     ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
   }
+  free_addr(vna);
 }
 
 static inline void
@@ -506,6 +507,7 @@ vroute_cb(netstack* ns, netstack_event_e etype, void* vnr){
   if(ns->opts.route_cb){
     ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
   }
+  free_route(vnr);
 }
 
 static inline void
@@ -513,6 +515,7 @@ vneigh_cb(netstack* ns, netstack_event_e etype, void* vnn){
   if(ns->opts.neigh_cb){
     ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
   }
+  free_neigh(vnn);
 }
 
 static int

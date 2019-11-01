@@ -57,8 +57,8 @@ int netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
 
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
-int netstack_neigh_family(const struct netstack_neigh* nn);
 int netstack_neigh_index(const struct netstack_neigh* nn);
+int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
 
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
