@@ -52,6 +52,7 @@ TEST(CopyIface, CallbackDeepCopy) {
   ASSERT_NE(nullptr, ns);
   std::unique_lock<std::mutex> lck(cc.mlock);
   cc.mcond.wait(lck, [&cc]{ return cc.ni1 != nullptr; });
+  cc.mlock.unlock();
   ASSERT_NE(nullptr, cc.ni1);
   ASSERT_NE(nullptr, cc.ni2);
   netstack_iface_abandon(cc.ni1);
@@ -70,6 +71,7 @@ TEST(CopyIface, CallbackShare) {
   ASSERT_NE(nullptr, ns);
   std::unique_lock<std::mutex> lck(cc.mlock);
   cc.mcond.wait(lck, [&cc]{ return cc.ni1 != nullptr; });
+  cc.mlock.unlock();
   ASSERT_NE(nullptr, cc.ni1);
   ASSERT_NE(nullptr, cc.ni2);
   netstack_iface_abandon(cc.ni1);
