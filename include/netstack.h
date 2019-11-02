@@ -256,13 +256,17 @@ int netstack_destroy(struct netstack* ns);
 // netstack_iface_abandon().
 const struct netstack_iface* netstack_iface_share_byname(struct netstack* ns, const char* name);
 const struct netstack_iface* netstack_iface_share_byidx(struct netstack* ns, int idx);
-const struct netstack_iface* netstack_iface_share(const struct netstack_iface* ni);
 
 // Copy out a netstack iface for arbitrary use in the client. This is a
 // heavyweight copy, and must be freed using netstack_iface_destroy(). You
 // would usually be better served by netstack_iface_share_*().
 struct netstack_iface* netstack_iface_copy_byname(struct netstack* ns, const char* name);
 struct netstack_iface* netstack_iface_copy_byidx(struct netstack* ns, int idx);
+
+// Copy/share a netstack_iface to which we already have a handle, for
+// instance directly from the callback context. This is faster than the
+// alternatives, as it needn't perform a lookup.
+const struct netstack_iface* netstack_iface_share(const struct netstack_iface* ni);
 struct netstack_iface* netstack_iface_copy(const struct netstack_iface* ni);
 
 // Release a netstack_iface acquired from the netstack through either a copy or

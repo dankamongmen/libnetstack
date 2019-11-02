@@ -20,12 +20,11 @@ void IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
     return;
   }
   struct copycurry* cc = static_cast<struct copycurry*>(curry);
-  cc->mlock.lock();
+  std::lock_guard<std::mutex> guard(cc->mlock);
   if(cc->ni1 == NULL){ // only stash once
     cc->ni1 = netstack_iface_copy(ni);
     cc->ni2 = netstack_iface_copy(ni);
   }
-  cc->mlock.unlock();
   cc->mcond.notify_all();
 }
 
@@ -34,12 +33,11 @@ void IntShareCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
     return;
   }
   struct copycurry* cc = static_cast<struct copycurry*>(curry);
-  cc->mlock.lock();
+  std::lock_guard<std::mutex> guard(cc->mlock);
   if(cc->ni1 == NULL){ // only stash once
     cc->ni1 = netstack_iface_share(ni);
     cc->ni2 = netstack_iface_share(ni);
   }
-  cc->mlock.unlock();
   cc->mcond.notify_all();
 }
 
@@ -52,7 +50,8 @@ TEST(CopyIface, CallbackDeepCopy) {
   nopts.iface_curry = &cc;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
-  // FIXME need to wait until enumeration is done #17
+  std::unique_lock<std::mutex> lck(cc.mlock);
+  cc.mcond.wait(lck, [&cc]{ return cc.ni1 != nullptr; });
   ASSERT_NE(nullptr, cc.ni1);
   ASSERT_NE(nullptr, cc.ni2);
   netstack_iface_abandon(cc.ni1);
@@ -69,7 +68,8 @@ TEST(CopyIface, CallbackShare) {
   nopts.iface_curry = &cc;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
-  // FIXME need to wait until enumeration is done #17
+  std::unique_lock<std::mutex> lck(cc.mlock);
+  cc.mcond.wait(lck, [&cc]{ return cc.ni1 != nullptr; });
   ASSERT_NE(nullptr, cc.ni1);
   ASSERT_NE(nullptr, cc.ni2);
   netstack_iface_abandon(cc.ni1);
