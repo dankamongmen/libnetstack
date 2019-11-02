@@ -275,46 +275,34 @@ int netstack_print_addr(const netstack_addr* na, FILE* out);
 int netstack_print_route(const netstack_route* nr, FILE* out);
 int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out);
 
-static inline const char*
-netstack_event_str(netstack_event_e etype){
-  switch(etype){
-    case NETSTACK_MOD: return "mod";
-    case NETSTACK_DEL: return "del";
-    default: return "???";
-  }
+#ifdef __cplusplus
 }
-
+#else
 // These wrappers have type signatures suitable for use as netstack callbacks.
-// The curry must be a valid FILE*.
+// The curry must be a valid FILE*. The use of void* makes them unsuitable
+// for C++, so they're only defined for C.
 static inline void
 vnetstack_print_iface(const struct netstack_iface* ni, netstack_event_e etype, void* vf){
-  FILE* f = (FILE*)vf;
-  fprintf(f, "%s ", netstack_event_str(etype));
-  netstack_print_iface(ni, f);
+  fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
+  netstack_print_iface(ni, vf);
 }
 
 static inline void
 vnetstack_print_addr(const netstack_addr* na, netstack_event_e etype, void* vf){
-  FILE* f = (FILE*)vf;
-  fprintf(f, "%s ", netstack_event_str(etype));
-  netstack_print_addr(na, f);
+  fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
+  netstack_print_addr(na, vf);
 }
 
 static inline void
 vnetstack_print_route(const netstack_route* nr, netstack_event_e etype, void* vf){
-  FILE* f = (FILE*)vf;
-  fprintf(f, "%s ", netstack_event_str(etype));
-  netstack_print_route(nr, f);
+  fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
+  netstack_print_route(nr, vf);
 }
 
 static inline void
 vnetstack_print_neigh(const struct netstack_neigh* nn, netstack_event_e etype, void* vf){
-  FILE* f = (FILE*)vf;
-  fprintf(f, "%s ", netstack_event_str(etype));
-  netstack_print_neigh(nn, f);
-}
-
-#ifdef __cplusplus
+  fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
+  netstack_print_neigh(nn, vf);
 }
 #endif
 
