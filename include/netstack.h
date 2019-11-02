@@ -256,18 +256,20 @@ int netstack_destroy(struct netstack* ns);
 // netstack_iface_abandon().
 const struct netstack_iface* netstack_iface_share_byname(struct netstack* ns, const char* name);
 const struct netstack_iface* netstack_iface_share_byidx(struct netstack* ns, int idx);
+const struct netstack_iface* netstack_iface_share(const struct netstack_iface* ni);
 
 // Copy out a netstack iface for arbitrary use in the client. This is a
 // heavyweight copy, and must be freed using netstack_iface_destroy(). You
 // would usually be better served by netstack_iface_share_*().
 struct netstack_iface* netstack_iface_copy_byname(struct netstack* ns, const char* name);
 struct netstack_iface* netstack_iface_copy_byidx(struct netstack* ns, int idx);
+struct netstack_iface* netstack_iface_copy(const struct netstack_iface* ni);
 
 // Release a netstack_iface acquired from the netstack through either a copy or
 // a share operation. Note that while the signature claims constness, ns will
 // actually presumably be mutated (via alias). It is thus imperative that the
 // passed object not be used again by the caller!
-void netstack_iface_abandon(const struct netstack_iface* ns);
+void netstack_iface_abandon(const struct netstack_iface* ni);
 
 // Print human-readable object summaries to the specied FILE*. -1 on error.
 int netstack_print_iface(const struct netstack_iface* ni, FILE* out);

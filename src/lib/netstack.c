@@ -820,6 +820,11 @@ netstack_iface* netstack_iface_copy_byidx(netstack* ns, int idx){
   return ret;
 }
 
+// No locking, object is already owned by caller
+netstack_iface* netstack_iface_copy(const netstack_iface* ni){
+  return create_iface(ni->rtabuf, ni->rtabuflen);
+}
+
 const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
   pthread_mutex_lock(&ns->hashlock);
   netstack_iface* ni = netstack_iface_byidx(ns, idx);
@@ -830,9 +835,16 @@ const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
   return ni;
 }
 
-void netstack_iface_abandon(const netstack_iface* ns){
-  netstack_iface* unsafe_ns = (netstack_iface*)ns;
-  netstack_iface_destroy(unsafe_ns);
+// Nothing gets locked here, since ownership indicates sufficient locking
+const netstack_iface* netstack_iface_share(const netstack_iface* ni){
+  netstack_iface* unsafe_ni = (netstack_iface*)ni;
+  atomic_fetch_add(&unsafe_ni->refcount, 1);
+  return ni;
+}
+
+void netstack_iface_abandon(const netstack_iface* ni){
+  netstack_iface* unsafe_ni = (netstack_iface*)ni;
+  netstack_iface_destroy(unsafe_ni);
 }
 
 const struct rtattr* netstack_iface_attr(const netstack_iface* ni, int attridx){
