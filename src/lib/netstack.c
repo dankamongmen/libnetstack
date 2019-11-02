@@ -35,6 +35,7 @@ typedef struct netstack_iface {
   // set up before invoking the user callback, these allow for o(1) index into
   // rtabuf by attr type. NULL if that attr wasn't in the message. We use
   // offsets rather than pointers lest deep copy require recomputing the index.
+  // They are 1-biased so that 0 works as a sentinel, indicating no attr.
   size_t rta_index[__IFLA_MAX];
   bool unknown_attrs; // are there attrs >= __IFLA_MAX?
   struct netstack_iface* hnext; // next in the idx-hashed table ns->iface_slots
@@ -200,8 +201,8 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
       ni->unknown_attrs = true;
       return true;
   }
-  if(ni->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
-    ni->rta_index[rta->rta_type] = rtaoff;
+  if(!ni->rta_index[rta->rta_type]){ // shouldn't see (1-biased) attrs twice
+    ni->rta_index[rta->rta_type] = rtaoff + 1;
   }
   return true;
 }
@@ -230,8 +231,8 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
       na->unknown_attrs = true;
       return true;
   }
-  if(na->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
-    na->rta_index[rta->rta_type] = rtaoff;
+  if(!na->rta_index[rta->rta_type]){ // shouldn't see (1-biased) attrs twice
+    na->rta_index[rta->rta_type] = rtaoff + 1;
   }
   return true;
 }
@@ -274,15 +275,14 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
     case RTA_SPORT:
     case RTA_DPORT:
     case RTA_NH_ID:
-      // FIXME
       break;
     default:
       fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
       nr->unknown_attrs = true;
       return true;
   }
-  if(nr->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
-    nr->rta_index[rta->rta_type] = rtaoff;
+  if(!nr->rta_index[rta->rta_type]){ // shouldn't see (1-biased) attrs twice
+    nr->rta_index[rta->rta_type] = rtaoff + 1;
   }
   return true;
 }
@@ -314,8 +314,8 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
       nn->unknown_attrs = true;
       return true;
   }
-  if(nn->rta_index[rta->rta_type] == 0){ // shouldn't see attrs twice
-    nn->rta_index[rta->rta_type] = rtaoff;
+  if(!nn->rta_index[rta->rta_type]){ // shouldn't see (1-biased) attrs twice
+    nn->rta_index[rta->rta_type] = rtaoff + 1;
   }
   return true;
 }

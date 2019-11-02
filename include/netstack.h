@@ -45,9 +45,14 @@ netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
   return NULL;
 }
 
+// Takes a 1-biased offset, where 0 is understood to be an invalid offset (and
+// will thus return NULL).
 static inline const struct rtattr*
 index_into_rta(const struct rtattr* rtabuf, size_t offset){
-  return (const struct rtattr*)(((char*)rtabuf) + offset);
+  if(offset-- == 0){
+    return NULL;
+  }
+  return (const struct rtattr*)(((const char*)rtabuf) + offset);
 }
 
 const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int attridx);

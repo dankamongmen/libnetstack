@@ -102,7 +102,7 @@ int netstack_print_addr(const netstack_addr* na, FILE* out){
 }
 
 int netstack_print_route(const netstack_route* nr, FILE* out){
-  const struct rtattr* nrrta = netstack_route_attr(nr, IFA_ADDRESS);
+  const struct rtattr* nrrta = netstack_route_attr(nr, RTA_DST);
   int ret = 0;
   if(nrrta == NULL){
     ret = fprintf(out, "[%s] default %s %s metric %d prio %d in %d out %d\n",
