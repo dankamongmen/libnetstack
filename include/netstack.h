@@ -229,9 +229,10 @@ typedef struct netstack_opts {
 struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 
-// Count of interfaces in the active store. If iface_notrack is set, this will
-// always return 0.
+// Count of interfaces in the active store, and bytes used to represent them in
+// total. If iface_notrack is set, these will always return 0.
 unsigned netstack_iface_count(const struct netstack* ns);
+uint64_t netstack_iface_bytes(const struct netstack* ns);
 
 struct netstack_enumerator;
 
