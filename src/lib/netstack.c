@@ -816,7 +816,7 @@ netstack_iface_byidx(const netstack* ns, int idx){
   int hidx = iface_hash(ns, idx);
   netstack_iface* ni = ns->iface_hash[hidx];
   while(ni){
-    if(ni->ifi.ifi_index == hidx){
+    if(ni->ifi.ifi_index == idx){
       break;
     }
     ni = ni->hnext;
