@@ -208,6 +208,8 @@ typedef enum {
 } netstack_initial_e;
 
 // The default for all members is false or the appropriate zero representation.
+// It is invalid to supply a non-NULL curry together with a NULL callback for
+// any type. It is invalid to supply no callbacks together with all notracks.
 typedef struct netstack_opts {
   // a given curry may be non-NULL only if the corresponding cb is also NULL.
   netstack_iface_cb iface_cb;
@@ -218,6 +220,8 @@ typedef struct netstack_opts {
   void* route_curry;
   netstack_neigh_cb neigh_cb;
   void* neigh_curry;
+  // If set, do not cache the corresponding type of object
+  bool iface_notrack, addr_notrack, route_notrack, neigh_notrack;
   netstack_initial_e initial_events; // policy for initial object enumeration
 } netstack_opts;
 
