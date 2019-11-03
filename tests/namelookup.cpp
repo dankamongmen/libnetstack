@@ -9,7 +9,6 @@
 // stashes the index of the callback subject interface
 struct copycurry {
   std::mutex mlock;
-  std::condition_variable mcond;
   std::string name;
 };
 
@@ -25,7 +24,6 @@ ExternalCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   char buf[IFNAMSIZ];
   cc->name = netstack_iface_name(ni, buf);
   cc->mlock.unlock();
-  cc->mcond.notify_all();
 }
 
 // Test name lookup + copy of an interface from outside of its callback context
@@ -33,12 +31,11 @@ TEST(NameLookup, IfaceDeepCopy) {
   struct copycurry cc = { .name = "", };
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
+  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_cb = ExternalCB;
   nopts.iface_curry = &cc;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
-  std::unique_lock<std::mutex> lck(cc.mlock);
-  cc.mcond.wait(lck, [&cc]{ return cc.name != ""; });
   netstack_iface* ni = netstack_iface_copy_byname(ns, cc.name.c_str());
   ASSERT_NE(nullptr, ni);
   int idx = netstack_iface_index(ni);
@@ -58,12 +55,11 @@ TEST(NameLookup, IfaceShare) {
   struct copycurry cc = { .name = "", };
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
+  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_cb = ExternalCB;
   nopts.iface_curry = &cc;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
-  std::unique_lock<std::mutex> lck(cc.mlock);
-  cc.mcond.wait(lck, [&cc]{ return cc.name != ""; });
   const netstack_iface* ni = netstack_iface_share_byname(ns, cc.name.c_str());
   ASSERT_NE(nullptr, ni);
   int idx = netstack_iface_index(ni);
