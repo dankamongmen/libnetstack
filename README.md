@@ -120,8 +120,7 @@ typedef enum {
 } netstack_event_e;
 
 // Callback types for various events. Even though routes, addresses etc. can be
-// reached through a netstack_iface object, they each get their own type of
-// callback.
+// reached through a netstack_iface, they each get their own type of callback.
 typedef void (*netstack_iface_cb)(const struct netstack_iface*, netstack_event_e, void*);
 typedef void (*netstack_addr_cb)(const struct netstack_addr*, netstack_event_e, void*);
 typedef void (*netstack_route_cb)(const struct netstack_route*, netstack_event_e, void*);
