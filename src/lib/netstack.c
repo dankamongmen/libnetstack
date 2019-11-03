@@ -66,6 +66,12 @@ typedef struct netstack_route {
   bool unknown_attrs;  // are there attrs >= __RTA_MAX?
 } netstack_route;
 
+// trie on names
+typedef struct name_node {
+  netstack_iface *iface;        // iface at this node, can be NULL
+  struct name_node* array[256]; // array of pointers to name_nodes
+} name_node;
+
 typedef struct netstack {
   struct nl_sock* nl;  // netlink connection abstraction from libnl
   pthread_t rxtid;
@@ -89,8 +95,30 @@ typedef struct netstack {
   // longer (or it would still have a reference).
   pthread_mutex_t hashlock;
   netstack_iface* iface_hash[IFACE_HASH_SLOTS];
+  name_node* name_trie; // all netstack_iface objects, indexed by name
   netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
+
+static void
+destroy_name_trie(name_node* node){
+  if(node){
+    size_t z;
+    for(z = 0 ; z < sizeof(node->array) / sizeof(*node->array) ; ++z){
+      destroy_name_trie(node->array[z]);
+    }
+    free(node);
+  }
+}
+
+const netstack_iface* lookup_name(const name_node* array, const char* name){
+  while(array){
+    if(!*name){
+      return array->iface;
+    }
+    array = array->array[*(const unsigned char*)(name++)];
+  }
+  return NULL;
+}
 
 static inline int
 iface_hash(const netstack* ns, int index){
@@ -801,6 +829,7 @@ int netstack_destroy(netstack* ns){
     ret |= pthread_mutex_destroy(&ns->txlock);
     ret |= pthread_mutex_destroy(&ns->hashlock);
     destroy_iface_cache(ns);
+    destroy_name_trie(ns->name_trie);
     free(ns);
   }
   return ret;
