@@ -126,7 +126,6 @@ netstack_tx_thread(void* vns){
     pthread_mutex_lock(&ns->txlock);
     pthread_cleanup_push(tx_cancel_clean, ns);
     while(!ns->clear_to_send || ns->txqueue[ns->dequeueidx] == -1){
-      pthread_cond_signal(&ns->txcond);
       pthread_cond_wait(&ns->txcond, &ns->txlock);
     }
     ns->clear_to_send = false;
