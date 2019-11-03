@@ -658,7 +658,10 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     nl_socket_free(ns->nl);
     return -1;
   }
-  if(nl_socket_add_memberships(ns->nl, RTNLGRP_LINK, NFNLGRP_NONE)){
+  if(nl_socket_add_memberships(ns->nl, RTNLGRP_LINK,
+                               RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR,
+                               RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE,
+                               RTNLGRP_NEIGH, NFNLGRP_NONE)){
     nl_socket_free(ns->nl);
     return -1;
   }
