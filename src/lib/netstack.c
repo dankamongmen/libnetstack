@@ -42,6 +42,14 @@ typedef struct netstack_iface {
   atomic_int refcount; // netstack and/or client(s) can share objects
 } netstack_iface;
 
+typedef struct netstack_addr {
+  struct ifaddrmsg ifa;
+  struct rtattr* rtabuf;        // copied directly from message
+  size_t rtabuflen;
+  size_t rta_index[__IFA_MAX];
+  bool unknown_attrs;  // are there attrs >= __IFA_MAX?
+} netstack_addr;
+
 typedef struct netstack_neigh {
   struct ndmsg nd;
   struct rtattr* rtabuf;        // copied directly from message
@@ -49,6 +57,14 @@ typedef struct netstack_neigh {
   size_t rta_index[__NDA_MAX];
   bool unknown_attrs;  // are there attrs >= __NDA_MAX?
 } netstack_neigh;
+
+typedef struct netstack_route {
+  struct rtmsg rt;
+  struct rtattr* rtabuf;        // copied directly from message
+  size_t rtabuflen;
+  size_t rta_index[__RTA_MAX];
+  bool unknown_attrs;  // are there attrs >= __RTA_MAX?
+} netstack_route;
 
 typedef struct netstack {
   struct nl_sock* nl;  // netlink connection abstraction from libnl
@@ -860,6 +876,32 @@ const struct rtattr* netstack_iface_attr(const netstack_iface* ni, int attridx){
   return netstack_extract_rta_attr(ni->rtabuf, ni->rtabuflen, attridx);
 }
 
+const struct rtattr* netstack_addr_attr(const netstack_addr* na, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(na->rta_index) / sizeof(*na->rta_index)){
+    return index_into_rta(na->rtabuf, na->rta_index[attridx]);
+  }
+  if(!na->unknown_attrs){
+    return NULL;
+  }
+  return netstack_extract_rta_attr(na->rtabuf, na->rtabuflen, attridx);
+}
+
+const struct rtattr* netstack_route_attr(const netstack_route* nr, int attridx){
+  if(attridx < 0){
+    return NULL;
+  }
+  if((size_t)attridx < sizeof(nr->rta_index) / sizeof(*nr->rta_index)){
+    return index_into_rta(nr->rtabuf, nr->rta_index[attridx]);
+  }
+  if(!nr->unknown_attrs){
+    return NULL;
+  }
+  return netstack_extract_rta_attr(nr->rtabuf, nr->rtabuflen, attridx);
+}
+
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx){
   if(attridx < 0){
     return NULL;
@@ -898,4 +940,36 @@ int netstack_neigh_index(const netstack_neigh* nn){
 
 int netstack_neigh_family(const netstack_neigh* nn){
   return nn->nd.ndm_family;
+}
+
+int netstack_addr_prefixlen(const netstack_addr* na){
+  return na->ifa.ifa_prefixlen;
+}
+
+int netstack_addr_index(const netstack_addr* na){
+  return na->ifa.ifa_index;
+}
+
+int netstack_addr_family(const netstack_addr* na){
+  return na->ifa.ifa_family;
+}
+
+unsigned netstack_route_family(const netstack_route* nr){
+  return nr->rt.rtm_family;
+}
+
+unsigned netstack_route_table(const netstack_route* nr){
+  return nr->rt.rtm_table;
+}
+
+unsigned netstack_route_type(const netstack_route* nr){
+  return nr->rt.rtm_type;
+}
+
+unsigned netstack_route_proto(const netstack_route* nr){
+  return nr->rt.rtm_protocol;
+}
+
+unsigned netstack_route_dst_len(const netstack_route* nr){
+  return nr->rt.rtm_dst_len;
 }

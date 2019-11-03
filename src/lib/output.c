@@ -82,42 +82,45 @@ l3addrstr(int l3fam, const struct rtattr* rta, char* str, size_t slen){
   return str;
 }
 
-int netstack_print_addr(const netstack_addr* na, FILE* out){
+int netstack_print_addr(const struct netstack_addr* na, FILE* out){
   const struct rtattr* narta = netstack_addr_attr(na, IFA_ADDRESS);
   if(narta == NULL){
     return -1;
   }
   char nastr[INET6_ADDRSTRLEN];
-  if(!l3addrstr(na->ifa.ifa_family, narta, nastr, sizeof(nastr))){
+  int family = netstack_addr_family(na);
+  if(!l3addrstr(family, narta, nastr, sizeof(nastr))){
     return -1;
   }
   int ret = 0;
-  ret = fprintf(out, "%3d [%s] %s/%u\n", na->ifa.ifa_index,
-                family_to_str(na->ifa.ifa_family),
-                nastr, na->ifa.ifa_prefixlen);
+  ret = fprintf(out, "%3d [%s] %s/%u\n", netstack_addr_index(na),
+                family_to_str(family), nastr, netstack_addr_prefixlen(na));
   if(ret < 0){
     return -1;
   }
   return 0;
 }
 
-int netstack_print_route(const netstack_route* nr, FILE* out){
+int netstack_print_route(const struct netstack_route* nr, FILE* out){
   const struct rtattr* nrrta = netstack_route_attr(nr, RTA_DST);
   int ret = 0;
+  unsigned rtype = netstack_route_type(nr);
+  unsigned proto = netstack_route_proto(nr);
+  unsigned family = netstack_route_family(nr);
   if(nrrta == NULL){
     ret = fprintf(out, "[%s] default %s %s metric %d prio %d in %d out %d\n",
-                  family_to_str(nr->rt.rtm_family),
-                  netstack_route_typestr(nr), netstack_route_protstr(nr),
+                  family_to_str(family),
+                  netstack_route_typestr(rtype), netstack_route_protstr(proto),
                   netstack_route_metric(nr), netstack_route_priority(nr),
                   netstack_route_iif(nr), netstack_route_oif(nr));
   }else{
     char nastr[INET6_ADDRSTRLEN];
-    if(!l3addrstr(nr->rt.rtm_family, nrrta, nastr, sizeof(nastr))){
+    if(!l3addrstr(family, nrrta, nastr, sizeof(nastr))){
       return -1;
     }
     ret = fprintf(out, "[%s] %s/%u %s %s metric %d prio %d in %d out %d\n",
-                  family_to_str(nr->rt.rtm_family), nastr, nr->rt.rtm_dst_len,
-                  netstack_route_typestr(nr), netstack_route_protstr(nr),
+                  family_to_str(family), nastr, netstack_route_dst_len(nr),
+                  netstack_route_typestr(rtype), netstack_route_protstr(proto),
                   netstack_route_metric(nr), netstack_route_priority(nr),
                   netstack_route_iif(nr), netstack_route_oif(nr));
   }

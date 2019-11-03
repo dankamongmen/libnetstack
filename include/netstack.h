@@ -32,7 +32,9 @@ extern "C" {
 
 struct netstack;
 struct netstack_iface;
+struct netstack_addr;
 struct netstack_neigh;
+struct netstack_route;
 
 static inline const struct rtattr*
 netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
@@ -60,10 +62,6 @@ char* netstack_iface_name(const struct netstack_iface* ni, char* name);
 int netstack_iface_type(const struct netstack_iface* ni);
 int netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
-
-const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
-int netstack_neigh_index(const struct netstack_neigh* nn);
-int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
 
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
@@ -93,59 +91,56 @@ netstack_iface_mtu(const struct netstack_iface* ni){
   return ret;
 }
 
-typedef struct netstack_addr {
-  struct ifaddrmsg ifa;
-  struct rtattr* rtabuf;        // copied directly from message
-  size_t rtabuflen;
-  size_t rta_index[__IFA_MAX];
-  bool unknown_attrs;  // are there attrs >= __IFA_MAX?
-} netstack_addr;
+const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
+int netstack_neigh_index(const struct netstack_neigh* nn);
+int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
 
-static inline const struct rtattr*
-netstack_addr_attr(const netstack_addr* na, int attridx){
-  if(attridx < 0){
-    return NULL;
-  }
-  if((size_t)attridx < sizeof(na->rta_index) / sizeof(*na->rta_index)){
-    return index_into_rta(na->rtabuf, na->rta_index[attridx]);
-  }
-  if(!na->unknown_attrs){
-    return NULL;
-  }
-  return netstack_extract_rta_attr(na->rtabuf, na->rtabuflen, attridx);
-}
+const struct rtattr* netstack_addr_attr(const struct netstack_addr* na, int attridx);
+int netstack_addr_family(const struct netstack_addr* na);
+int netstack_addr_index(const struct netstack_addr* na);
+int netstack_addr_prefixlen(const struct netstack_addr* na);
 
-typedef struct netstack_route {
-  struct rtmsg rt;
-  struct rtattr* rtabuf;        // copied directly from message
-  size_t rtabuflen;
-  size_t rta_index[__RTA_MAX];
-  bool unknown_attrs;  // are there attrs >= __RTA_MAX?
-} netstack_route;
-
-static inline const struct rtattr*
-netstack_route_attr(const netstack_route* nr, int attridx){
-  if(attridx < 0){
-    return NULL;
-  }
-  if((size_t)attridx < sizeof(nr->rta_index) / sizeof(*nr->rta_index)){
-    return index_into_rta(nr->rtabuf, nr->rta_index[attridx]);
-  }
-  if(!nr->unknown_attrs){
-    return NULL;
-  }
-  return netstack_extract_rta_attr(nr->rtabuf, nr->rtabuflen, attridx);
-}
-
+const struct rtattr* netstack_route_attr(const struct netstack_route* nr, int attridx);
 // Routing tables are indexed 0-255
-static inline unsigned
-netstack_route_table(const netstack_route* nr){
-  return nr->rt.rtm_table;
+unsigned netstack_route_family(const struct netstack_route* nr);
+unsigned netstack_route_table(const struct netstack_route* nr);
+unsigned netstack_route_type(const struct netstack_route* nr);
+unsigned netstack_route_proto(const struct netstack_route* nr);
+unsigned netstack_route_dst_len(const struct netstack_route* nr);
+
+static inline int
+netstack_route_intattr(const struct netstack_route* nr, int attr){
+  const struct rtattr* rt = netstack_route_attr(nr, attr);
+  int ret = 0;
+  if(rt && RTA_PAYLOAD(rt) == sizeof(ret)){
+    memcpy(&ret, RTA_DATA(rt), RTA_PAYLOAD(rt));
+  }
+  return ret;
+}
+
+static inline int
+netstack_route_iif(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_IIF);
+}
+
+static inline int
+netstack_route_oif(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_OIF);
+}
+
+static inline int
+netstack_route_priority(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_PRIORITY);
+}
+
+static inline int
+netstack_route_metric(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_METRICS);
 }
 
 static inline const char*
-netstack_route_typestr(const netstack_route* nr){
-  switch(nr->rt.rtm_type){
+netstack_route_typestr(unsigned rtype){
+  switch(rtype){
     case RTN_UNSPEC: return "none";
     case RTN_UNICAST: return "unicast";
     case RTN_LOCAL: return "local";
@@ -163,8 +158,8 @@ netstack_route_typestr(const netstack_route* nr){
 }
 
 static inline const char*
-netstack_route_protstr(const netstack_route* nr){
-  switch(nr->rt.rtm_protocol){
+netstack_route_protstr(unsigned proto){
+  switch(proto){
     case RTPROT_UNSPEC: return "unknown";
     case RTPROT_REDIRECT: return "icmp";
     case RTPROT_KERNEL: return "kernel";
@@ -190,37 +185,6 @@ netstack_route_protstr(const netstack_route* nr){
   }
 }
 
-static inline int
-netstack_route_intattr(const netstack_route* nr, int attr){
-  const struct rtattr* rt = netstack_route_attr(nr, attr);
-  int ret = 0;
-  if(rt && RTA_PAYLOAD(rt) == sizeof(ret)){
-    memcpy(&ret, RTA_DATA(rt), RTA_PAYLOAD(rt));
-  }
-  return ret;
-}
-
-
-static inline int
-netstack_route_iif(const netstack_route* nr){
-  return netstack_route_intattr(nr, RTA_IIF);
-}
-
-static inline int
-netstack_route_oif(const netstack_route* nr){
-  return netstack_route_intattr(nr, RTA_OIF);
-}
-
-static inline int
-netstack_route_priority(const netstack_route* nr){
-  return netstack_route_intattr(nr, RTA_PRIORITY);
-}
-
-static inline int
-netstack_route_metric(const netstack_route* nr){
-  return netstack_route_intattr(nr, RTA_METRICS);
-}
-
 typedef enum {
   NETSTACK_MOD, // a non-destructive event about an object
   NETSTACK_DEL, // an object that is going away
@@ -230,8 +194,8 @@ typedef enum {
 // reached through a netstack_iface object, they each get their own type of
 // callback.
 typedef void (*netstack_iface_cb)(const struct netstack_iface*, netstack_event_e, void*);
-typedef void (*netstack_addr_cb)(const netstack_addr*, netstack_event_e, void*);
-typedef void (*netstack_route_cb)(const netstack_route*, netstack_event_e, void*);
+typedef void (*netstack_addr_cb)(const struct netstack_addr*, netstack_event_e, void*);
+typedef void (*netstack_route_cb)(const struct netstack_route*, netstack_event_e, void*);
 typedef void (*netstack_neigh_cb)(const struct netstack_neigh*, netstack_event_e, void*);
 
 // The default for all members is false or the appropriate zero representation.
@@ -282,8 +246,8 @@ void netstack_iface_abandon(const struct netstack_iface* ni);
 
 // Print human-readable object summaries to the specied FILE*. -1 on error.
 int netstack_print_iface(const struct netstack_iface* ni, FILE* out);
-int netstack_print_addr(const netstack_addr* na, FILE* out);
-int netstack_print_route(const netstack_route* nr, FILE* out);
+int netstack_print_addr(const struct netstack_addr* na, FILE* out);
+int netstack_print_route(const struct netstack_route* nr, FILE* out);
 int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out);
 
 #ifdef __cplusplus
@@ -299,13 +263,13 @@ vnetstack_print_iface(const struct netstack_iface* ni, netstack_event_e etype, v
 }
 
 static inline void
-vnetstack_print_addr(const netstack_addr* na, netstack_event_e etype, void* vf){
+vnetstack_print_addr(const struct netstack_addr* na, netstack_event_e etype, void* vf){
   fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
   netstack_print_addr(na, vf);
 }
 
 static inline void
-vnetstack_print_route(const netstack_route* nr, netstack_event_e etype, void* vf){
+vnetstack_print_route(const struct netstack_route* nr, netstack_event_e etype, void* vf){
   fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
   netstack_print_route(nr, vf);
 }
