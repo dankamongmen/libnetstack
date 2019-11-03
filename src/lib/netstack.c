@@ -120,10 +120,9 @@ create_name_node(netstack_iface* iface){
   return n;
 }
 
-// Returns any netstack_iface we happen to replace
-static name_node*
-name_trie_add(name_node** node, netstack_iface* ni){
-  const char* name = ni->name;
+// Returns any netstack_iface we happen to replace. ni == NULL to purge.
+static netstack_iface*
+name_trie_exchange(name_node** node, netstack_iface* ni, const char* name){
   while(*name){
     if(*node == NULL){
       if((*node = create_name_node(NULL)) == NULL){
@@ -132,9 +131,27 @@ name_trie_add(name_node** node, netstack_iface* ni){
     }
     node = &((*node)->array[*(const unsigned char*)(name++)]);
   }
-  name_node* replaced = *node;
-  *node = create_name_node(ni);
+  netstack_iface* replaced;
+  if(*node){
+    replaced = (*node)->iface;
+    (*node)->iface = ni;
+  }else{
+    replaced = NULL;
+    *node = ni ? create_name_node(ni) : NULL;
+  }
   return replaced;
+}
+
+// Returns the replaced node, if any
+static inline netstack_iface*
+name_trie_add(name_node** node, netstack_iface* ni){
+  return name_trie_exchange(node, ni, ni->name);
+}
+
+// Returns the purged node, if any
+static inline netstack_iface*
+name_trie_purge(name_node** node, const char* name){
+  return name_trie_exchange(node, NULL, name);
 }
 
 static inline int
@@ -411,10 +428,15 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   netstack_iface* replaced = NULL;
   int hidx = iface_hash(ns, ni->ifi.ifi_index);
   pthread_mutex_lock(&ns->hashlock);
-  name_trie_add(&ns->name_trie, ni);
-  ni->hnext = ns->iface_hash[hidx]; // we always insert into the front of hlist
-  ns->iface_hash[hidx] = ni;
-  netstack_iface** tmp = &ni->hnext;
+  netstack_iface** tmp = &ns->iface_hash[hidx];
+  if(etype != NETSTACK_DEL){ // insert into caches
+    name_trie_add(&ns->name_trie, ni);
+    ni->hnext = *tmp; // we always insert into the front of hlist
+    *tmp = ni;
+    tmp = &ni->hnext;
+  }else{ // purge from caches
+    name_trie_purge(&ns->name_trie, ni->name);
+  }
   while(*tmp){ // need to see if one ought be removed (matches our key)
     if((*tmp)->ifi.ifi_index == ni->ifi.ifi_index){
       replaced = *tmp;
