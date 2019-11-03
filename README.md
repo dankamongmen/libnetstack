@@ -18,6 +18,18 @@ elements up-to-date based on netlink, and the user can query this cache at any
 time. Design goals included minimal footprints for both memory and compute,
 while supporting fast lookups in the presence of millions of routes.
 
+* [libnetstack](#libnetstack)
+  * [Why not just use libnl-route?](#why-not-just-use-libnl-route)
+      * [Why not just use ioctl()s, as Stevens taught us?](#why-not-just-use-ioctls-as-stevens-taught-us)
+      * [Why not just use netlink(3) directly?](#why-not-just-use-netlink3-directly)
+  * [Requirements](#requirements)
+  * [Use](#use)
+      * [Initial enumeration events](#initial-enumeration-events)
+      * [Object types](#object-types)
+      * [Options](#options)
+      * [Accessing cached objects](#accessing-cached-objects)
+      * [Working with objects](#working-with-objects)
+
 ## Why not just use [libnl-route](https://www.infradead.org/~tgr/libnl/doc/api/group__rtnl.html)?
 
 Feel free to use libnl-route. I wasn't enamored of some of its API decisions.
@@ -32,7 +44,7 @@ difference.
 
 Libnetstack is Apache-licensed, whereas libnl-route is LGPL.
 
-### Why not just use `ioctl()`s as Stevens taught us?
+### Why not just use `ioctl()`s, as Stevens taught us?
 
 [UNIX Network Programming's](http://www.unpbook.com/) third and most recent
 edition was 2003. Much has happened since then. The various `ioctl()`
@@ -40,7 +52,7 @@ mechanisms require polling, and are incomplete compared to rtnetlink(7).
 
 ### Why not just use netlink(3) directly?
 
-It's a tremendous pain in the ass.
+It's a tremendous pain in the ass, I assure you.
 
 ## Requirements
 
