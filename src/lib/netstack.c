@@ -96,6 +96,7 @@ typedef struct netstack {
   pthread_mutex_t hashlock;
   netstack_iface* iface_hash[IFACE_HASH_SLOTS];
   unsigned iface_count; // ifaces currently in the active cache
+  uint64_t iface_bytes; // bytes occupied (not including metadata) in cache
   name_node* name_trie; // all netstack_iface objects, indexed by name
   netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
@@ -714,6 +715,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   ns->clear_to_send = true;
   ns->name_trie = NULL;
   ns->iface_count = 0;
+  ns->iface_bytes = 0;
   memset(&ns->iface_hash, 0, sizeof(ns->iface_hash));
   if((ns->nl = nl_socket_alloc()) == NULL){
     return -1;
@@ -922,6 +924,15 @@ unsigned netstack_iface_count(const netstack* ns){
   unsigned ret;
   pthread_mutex_lock(&unsafe_ns->hashlock);
   ret = ns->iface_count;
+  pthread_mutex_unlock(&unsafe_ns->hashlock);
+  return ret;
+}
+
+uint64_t netstack_iface_bytes(const netstack* ns){
+  netstack* unsafe_ns = (netstack*)ns;
+  unsigned ret;
+  pthread_mutex_lock(&unsafe_ns->hashlock);
+  ret = ns->iface_bytes;
   pthread_mutex_unlock(&unsafe_ns->hashlock);
   return ret;
 }

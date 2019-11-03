@@ -271,9 +271,10 @@ guarantee that the number won't have changed by the time a subsequent
 enumeration is requested:
 
 ```
-// Count of interfaces in the active store. If iface_notrack is set, this will
-// always return 0.
+// Count of interfaces in the active store, and bytes used to represent them in
+// total. If iface_notrack is set, these will always return 0.
 unsigned netstack_iface_count(const struct netstack* ns);
+uint64_t netstack_iface_bytes(const netstack* ns);
 ```
 
 Enumeration currently always takes the form of a copy, never a share (shared
