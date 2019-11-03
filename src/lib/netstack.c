@@ -503,9 +503,12 @@ int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int* n,
   }
 exhausted:
   // if we're not yet done, just out of memory, we need to set up streaming.
-  // either way, 
+  // either way, set our new values.
   if(z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) || ni){
-
+    // FIXME streaming
+  }else{
+    *n = 0;
+    *obytes = 0;
   }
   pthread_mutex_unlock(&unsafe_ns->hashlock);
   return copied;
