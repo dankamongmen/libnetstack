@@ -25,7 +25,8 @@ ExternalCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
 
 // Test deep copying of an interface from outside of its callback context
 TEST(IdxLookup, IfaceDeepCopy) {
-  struct copycurry cc = { .idx = -1 };
+  struct copycurry cc = {};
+  cc.idx = -1;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
@@ -51,7 +52,8 @@ TEST(IdxLookup, IfaceDeepCopy) {
 
 // Test sharing of an interface from outside of its callback context
 TEST(IdxLookup, IfaceShare) {
-  struct copycurry cc = { .idx = -1 };
+  struct copycurry cc = {};
+  cc.idx = -1;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;

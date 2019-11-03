@@ -60,7 +60,9 @@ IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
 
 // Verify that we can't look up an interface for which we got a callback
 TEST(NoTrack, IfaceFailsLookup) {
-  struct copycurry cc = { .name = "", .idx = -1, };
+  struct copycurry cc = {};
+  cc.name = "";
+  cc.idx = -1;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;

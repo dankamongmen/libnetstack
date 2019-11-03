@@ -28,7 +28,9 @@ IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
 
 // Test deep copying of an interface from within its callback context
 TEST(CopyIface, CallbackDeepCopy) {
-  struct copycurry cc = { .ni1 = nullptr, .ni2 = nullptr, };
+  struct copycurry cc = {};
+  cc.ni1 = nullptr;
+  cc.ni2 = nullptr;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
@@ -58,7 +60,9 @@ IntShareCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
 
 // Test sharing of an interface from within its callback context
 TEST(CopyIface, CallbackShare) {
-  struct copycurry cc = { .ni1 = nullptr, .ni2 = nullptr, };
+  struct copycurry cc = {};
+  cc.ni1 = nullptr;
+  cc.ni2 = nullptr;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
