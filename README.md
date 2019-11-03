@@ -114,6 +114,29 @@ may be configured for each different kind of object. If the callback is `NULL`,
 the curry must also be `NULL`.
 
 ```
+typedef enum {
+  NETSTACK_MOD, // a non-destructive event about an object
+  NETSTACK_DEL, // an object that is going away
+} netstack_event_e;
+
+// Callback types for various events. Even though routes, addresses etc. can be
+// reached through a netstack_iface object, they each get their own type of
+// callback.
+typedef void (*netstack_iface_cb)(const struct netstack_iface*, netstack_event_e, void*);
+typedef void (*netstack_addr_cb)(const struct netstack_addr*, netstack_event_e, void*);
+typedef void (*netstack_route_cb)(const struct netstack_route*, netstack_event_e, void*);
+typedef void (*netstack_neigh_cb)(const struct netstack_neigh*, netstack_event_e, void*);
+
+// Policy for initial object dump. _ASYNC will cause events for existing
+// objects, but netstack_create() may return before they've been received.
+// _BLOCK blocks netstack_create() from returning until all initial enumeration
+// events have been received. _NONE inhibits initial enumeration.
+typedef enum {
+  NETSTACK_INITIAL_EVENTS_ASYNC,
+  NETSTACK_INITIAL_EVENTS_BLOCK,
+  NETSTACK_INITIAL_EVENTS_NONE,
+} netstack_initial_e;
+
 // The default for all members is false or the appropriate zero representation.
 typedef struct netstack_opts {
   // a given curry may be non-NULL only if the corresponding cb is also NULL.
@@ -125,8 +148,7 @@ typedef struct netstack_opts {
   void* route_curry;
   netstack_neigh_cb neigh_cb;
   void* neigh_curry;
-  int initial_events; // policy regarding initial object enumeration events:
-                      // one of NETSTACK_INITIAL_EVENTS_{ASYNC, BLOCK, NONE}
+  netstack_initial_e initial_events; // policy for initial object enumeration
 } netstack_opts;
 ```
 
