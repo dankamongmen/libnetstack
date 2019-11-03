@@ -95,6 +95,7 @@ typedef struct netstack {
   // longer (or it would still have a reference).
   pthread_mutex_t hashlock;
   netstack_iface* iface_hash[IFACE_HASH_SLOTS];
+  unsigned iface_count; // ifaces currently in the active cache
   name_node* name_trie; // all netstack_iface objects, indexed by name
   netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
@@ -437,8 +438,11 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
       ni->hnext = *tmp; // we always insert into the front of hlist
       *tmp = ni;
       tmp = &ni->hnext;
+      ++ns->iface_count;
     }else{ // purge from caches
-      name_trie_purge(&ns->name_trie, ni->name);
+      if(name_trie_purge(&ns->name_trie, ni->name)){
+        --ns->iface_count;
+      }
     }
     while(*tmp){ // need to see if one ought be removed (matches our key)
       if((*tmp)->ifi.ifi_index == ni->ifi.ifi_index){
@@ -454,6 +458,7 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
     // For the former case, we need remove the old name.
     if(replaced && strcmp(ni->name, replaced->name)){
       name_trie_purge(&ns->name_trie, replaced->name);
+      --ns->iface_count;
     }
     pthread_mutex_unlock(&ns->hashlock);
     if(replaced){
@@ -661,6 +666,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   ns->dequeueidx = 0;
   ns->clear_to_send = true;
   ns->name_trie = NULL;
+  ns->iface_count = 0;
   memset(&ns->iface_hash, 0, sizeof(ns->iface_hash));
   if((ns->nl = nl_socket_alloc()) == NULL){
     return -1;
@@ -862,6 +868,15 @@ const netstack_iface* netstack_iface_share(const netstack_iface* ni){
 void netstack_iface_abandon(const netstack_iface* ni){
   netstack_iface* unsafe_ni = (netstack_iface*)ni;
   netstack_iface_destroy(unsafe_ni);
+}
+
+unsigned netstack_iface_count(const netstack* ns){
+  netstack* unsafe_ns = (netstack*)ns;
+  unsigned ret;
+  pthread_mutex_lock(&unsafe_ns->hashlock);
+  ret = ns->iface_count;
+  pthread_mutex_unlock(&unsafe_ns->hashlock);
+  return ret;
 }
 
 const struct rtattr* netstack_iface_attr(const netstack_iface* ni, int attridx){

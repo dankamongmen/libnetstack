@@ -229,6 +229,10 @@ typedef struct netstack_opts {
 struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 
+// Count of interfaces in the active store. If iface_notrack is set, this will
+// always return 0.
+unsigned netstack_iface_count(const struct netstack* ns);
+
 // Take a reference on some netstack iface for read-only use in the client.
 // There is no copy, but the object still needs to be freed by a call to
 // netstack_iface_abandon().
