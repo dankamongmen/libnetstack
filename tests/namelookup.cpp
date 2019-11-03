@@ -1,6 +1,5 @@
 #include <mutex>
 #include <net/if.h>
-#include <condition_variable>
 #include "main.h"
 
 // Unit tests for copying/sharing objects previously registered via callback,

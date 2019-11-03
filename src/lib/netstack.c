@@ -607,9 +607,11 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
 
 static bool
 validate_options(const netstack_opts* nopts){
+  // NULL? No problem! All zeroes maps to all defaults, is all good!
   if(nopts == NULL){
     return true;
   }
+  // Without a callback, do not allow a meaningless curry to be specified
   if(nopts->iface_curry && !nopts->iface_cb){
     return false;
   }
@@ -621,6 +623,12 @@ validate_options(const netstack_opts* nopts){
   }
   if(nopts->neigh_curry && !nopts->neigh_cb){
     return false;
+  }
+  // Must have at least some kind of action configured (callback or track)
+  if(!nopts->addr_cb && !nopts->neigh_cb && !nopts->route_cb && !nopts->iface_cb){
+    if(nopts->addr_notrack && nopts->neigh_notrack && nopts->route_notrack && nopts->iface_notrack){
+      return false;
+    }
   }
   return true;
 }
