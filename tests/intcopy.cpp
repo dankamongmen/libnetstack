@@ -20,7 +20,7 @@ IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   }
   struct copycurry* cc = static_cast<struct copycurry*>(curry);
   std::lock_guard<std::mutex> guard(cc->mlock);
-  if(cc->ni1 == NULL){ // only stash once
+  if(cc->ni1 == nullptr){ // only stash once
     cc->ni1 = netstack_iface_copy(ni);
     cc->ni2 = netstack_iface_copy(ni);
   }
@@ -50,7 +50,7 @@ IntShareCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   }
   struct copycurry* cc = static_cast<struct copycurry*>(curry);
   std::lock_guard<std::mutex> guard(cc->mlock);
-  if(cc->ni1 == NULL){ // only stash once
+  if(cc->ni1 == nullptr){ // only stash once
     cc->ni1 = netstack_iface_share(ni);
     cc->ni2 = netstack_iface_share(ni);
   }
