@@ -295,40 +295,68 @@ uint64_t netstack_iface_bytes(const netstack* ns);
 Enumeration currently always takes the form of a copy, never a share (shared
 enumerations will be added if a compelling reason for them is found). Two
 buffers must be provided for an enumeration request of up to `N` objects:
-`offsets`, an array of `N` 4-byte unsigned integers, and `objs`, a character
-buffer of some size (`obytes`). No more than `N` objects will be enumerated. If
-`objs` becomes exhausted, or `N` objects do not exist, fewer than `N` will be
-enumerated. The number of objects enumerated is returned, or -1 on error.
+* `offsets`, an array of `N` `uint32_t`s, and
+* `objs`, a character buffer of some size (`obytes`)
+No more than `N` objects will be enumerated. If `objs` becomes exhausted, or
+`N` objects do not exist, fewer than `N` will be enumerated. The number of
+objects enumerated is returned, or -1 on error.
 
 ```
+// State for streaming enumerations (enumerations taking place over several
+// calls). It's exposed in this header so that callers can easily define one on
+// their stacks. Don't mess with it. Zero it out to start a new enumeration.
+typedef struct netstack_enumerator {
+  uint32_t nonce;
+  uint32_t slot;
+  struct netstack_iface* hnext;
+} netstack_enumerator;
+
+// Enumerate up to n netstack_ifaces via copy. offsets must have space for at
+// least n elements, which will serve as offsets into objs. objs is a flat
+// array of size obytes. flags is a bitfield composed of the NETSTACK_ENUMERATE
+// constants. streamer ought point to a zero-initialized netstack_enumerator to
+// begin an enumeration operation. If netstack_iface_enumerate() is called
+// again using this same streamer, the enumeration picks up where it left off.
+// A NULL streamer is interpreted as a request for atomic enumeration; if there
+// is not sufficient space to copy all objects, it is an error, and the
+// copying will be aborted as soon as possible. Unlike other errors, n and
+// obytes will be updated in this case to reflect the current necessary values.
+//
+// Returns -1 on error, due to invalid parameters, insufficient space for an
+// atomic enumeraion, or failure to resume an enumeration (this can happen if
+// too much has changed since the previous call--enumerations aren't really
+// suitable for highly dynamic environments). No parameters are modified in
+// this case (save the atomic case, as noted above). Otherwise, the number of objects
+// copied r is returned, r <= the original *n. n is set to the number of
+// objects remaining. obytes is set to the bytes required to copy the remaning
+// objects. streamer is updated, if appropriate. The first r values of offsets
+// give valid byte offsets into objs, and a (suitably-aligned) network_iface is
+// present at each such offset. Their associated buffers are also present in
+// objs. The pointers and bookkeeping within the netstack_ifaces have been
+// updated so that the resulting objects can be used with the standard
+// netstack_iface API. There is no need to call netstack_iface_abandon() on
+// these objects.
+//
+// An enumeration operation is thus successfully terminated iff a non-negative
+// number is returned, and *n and *obytes have both been set to 0. Note that
+// a 0 could be returned without completion if objs is too small to copy the
+// next object; in this case, neither *n nor *obytes would be 0.
 int netstack_iface_enumerate(const struct netstack* ns,
-                             const uint32_t* offsets, int n,
-                             void* objs, size_t obytes, unsigned flags,
-                             struct netstack_enumerator** streamer);
-
-// If there is not sufficient room in the buffers to copy all of the objects in
-// a single atomic operation, return -1 and perform as little work as possible.
-#define NETSTACK_ENUMERATE_ATOMIC  0x0001
-#define NETSTACK_ENUMERATE_MINIMAL 0x0002 // Copy only the most important data
-// Abort the enumeration operation. should be non-NULL, though this is not
-// enforced. No other flags may be set with NETSTACK_ENUMERATE_ABORT.
-#define NETSTACK_ENUMERATE_ABORT   0x0004
+                             uint32_t* offsets, int* n,
+                             void* objs, size_t* obytes,
+                             netstack_enumerator* streamer);
 ```
 
-The `streamer` parameter is used to stream through the objects. It must point
-to a `NULL` pointer to `struct netmask_enumerator` on the first call of an
-enumeration operation. `streamer` will be set to `NULL` if and only if the
-enumeration is completed by the call (or if there is an error). Otherwise,
-`netstack_iface_enumerate` must be called again to continue streaming. Failure
-to do so is a memory leak. `NETSTACK_ENUMERATE_ABORT` can be used to stop
-enumerating, but either way, `netstack_iface_enumerate` should be called.
+The `streamer` parameter is used to stream through the objects. It must be
+zeroed out prior to the first call of an enumeration sequence, and should not
+be modified by the caller. Repeating a call with a `streamer` that has
+already completed is not an error (0 will be returned, and `n` and `obytes`
+will both be set to 0). An enumeration returning an error should not be retried
+with the same `streamer`.
 
 For a positive return value _r_, the _r_ values returned in `offsets` index
 into `objs`. Each one is a (suitably-aligned) `struct netstack_iface`. These
 `netstack_iface`s do *not* need to be fed to `netstack_iface_abandon()`.
-
-An enumeration returning an error cannot be restarted. `streamer` will be set
-to NULL (and its resources will be released) on any error.
 
 ### Querying objects
 
