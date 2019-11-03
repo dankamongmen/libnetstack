@@ -34,9 +34,9 @@ Libnetstack is Apache-licensed, whereas libnl-route is LGPL.
 
 ### Why not just use `ioctl()`s as Stevens taught us?
 
-UNIX Network Programming's third and most recent edition was 2003. Much has
-happened since then. The various `ioctl()` mechanisms require polling, and are
-incomplete compared to rtnetlink(7).
+[UNIX Network Programming's](http://www.unpbook.com/) third and most recent
+edition was 2003. Much has happened since then. The various `ioctl()`
+mechanisms require polling, and are incomplete compared to rtnetlink(7).
 
 ### Why not just use netlink(3) directly?
 
