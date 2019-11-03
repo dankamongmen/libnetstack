@@ -574,10 +574,6 @@ validate_options(const netstack_opts* nopts){
   if(nopts == NULL){
     return true;
   }
-  if(nopts->no_thread){
-    fprintf(stderr, "Threadless mode is not yet supported\n"); // FIXME
-    return false;
-  }
   if(nopts->iface_curry && !nopts->iface_cb){
     return false;
   }

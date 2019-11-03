@@ -220,9 +220,6 @@ typedef struct netstack_opts {
   netstack_neigh_cb neigh_cb;
   void* neigh_curry;
   netstack_initial_e initial_events; // policy for initial object enumeration
-  // refrain from launching a thread to handle netlink events in the
-  // background. caller will need to handle nonblocking I/O. not yet used FIXME
-  bool no_thread;
 } netstack_opts;
 
 // Opts may be NULL, in which case the defaults will be used.
