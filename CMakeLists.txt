@@ -93,12 +93,12 @@ write_basic_package_version_file(
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/libnetstackConfig.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/libnetstackConfigVersion.cmake
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/libnetstack
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libnetstack
 )
 
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/libnetstack.pc
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
 install(TARGETS netstack netstack-demo netstack-static

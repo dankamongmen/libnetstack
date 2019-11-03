@@ -4,6 +4,7 @@ libnetstack (0.4.0-1) unstable; urgency=medium
      fix default route enumeration, add name-based lookup, remove
      elements from caches on DELETE events, share/copy from callback
   * Remove debian/compat, obsoleted by "debhelper-compat (= 12)"
+  * Install pkgconfig and cmake support to proper multiarch dests
 
  -- Nick Black <dankamongmen@gmail.com>  Sat, 02 Nov 2019 23:22:33 -0400
 
