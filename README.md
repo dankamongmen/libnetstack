@@ -83,7 +83,7 @@ Four object types are currently supported:
 
 * _ifaces_, corresponding to network devices both physical and virtual. There
   is a one-to-one correspondence to elements in sysfs's `/class/net` node, and
-  to the outputs of `ip route list`.
+  also to the outputs of `ip link list`.
 
 The remaining objects are all associated with a single _iface_, but
 multiple _ifaces_ might each lay claim to overlapping objects. For instance, it
