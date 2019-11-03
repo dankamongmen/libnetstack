@@ -27,7 +27,8 @@ ExternalCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
 
 // Test name lookup + copy of an interface from outside of its callback context
 TEST(NameLookup, IfaceDeepCopy) {
-  struct copycurry cc = { .name = "", };
+  struct copycurry cc = {};
+  cc.name = "";
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
@@ -51,7 +52,8 @@ TEST(NameLookup, IfaceDeepCopy) {
 
 // Test name lookup + share of an interface from outside of its callback context
 TEST(NameLookup, IfaceShare) {
-  struct copycurry cc = { .name = "", };
+  struct copycurry cc = {};
+  cc.name = "";
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
