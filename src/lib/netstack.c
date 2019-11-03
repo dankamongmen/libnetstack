@@ -473,19 +473,22 @@ unsigned netstack_iface_count(const netstack* ns){
   return ret;
 }
 
-int netstack_iface_enumerate(const struct netstack* ns,
-                             const uint32_t* offsets, int n,
+int netstack_iface_enumerate(const netstack* ns, const uint32_t* offsets, int n,
                              void* objs, size_t obytes, unsigned flags,
                              struct netstack_enumerator** streamer){
   if(!validate_enumeration_flags(offsets, n, objs, obytes, flags, streamer)){
     destroy_streamer(streamer);
     return -1;
   }
-  const size_t tsize = netstack_iface_size(ns);
+  netstack* unsafe_ns = (netstack*)ns;
+  const size_t tsize = ns->iface_bytes;
+  pthread_mutex_lock(&unsafe_ns->hashlock);
   if(tsize > obytes && (flags & NETSTACK_ENUMERATE_ATOMIC)){
+    pthread_mutex_unlock(&unsafe_ns->hashlock);
     return -1;
   }
   // FIXME enumerate!
+  pthread_mutex_unlock(&unsafe_ns->hashlock);
   return 0;
 }
 
