@@ -421,6 +421,53 @@ static inline void vfree_neigh(void* vn){ free_neigh(vn); }
  NLMSG_PAYLOAD((n), sizeof(struct ndmsg))
 #endif
 
+static bool
+validate_enumeration_flags(const uint32_t* offsets, void* objs,
+                           size_t obytes, int n, unsigned flags,
+                           struct netstack_enumerator** streamer){
+  if(n < 0){ // in no case may n be negative
+    return false;
+  }
+  // ABORT cannot be set with any other flags, and requires a streamer. It is
+  // the only time offsets/objs/obytes/n can be invalid (though n must >= 0).
+  if(flags & NETSTACK_ENUMERATE_ABORT){
+    if(!*streamer){
+      return false;
+    }
+    if(flags & ~NETSTACK_ENUMERATE_ABORT){
+      return false;
+    }
+    return true;
+  }
+  if(flags & NETSTACK_ENUMERATE_ATOMIC){ // ATOMIC should never have a streamer
+    if(*streamer){
+      return false;
+    }
+  }
+  // Unless ABORT was set, all buffer variables must be positive/non-NULL.
+  if(!offsets || !objs || !obytes || n <= 0){
+    return false;
+  }
+  return true;
+}
+
+static void
+destroy_streamer(struct netstack_enumerator** streamer){
+  free(*streamer);
+  *streamer = NULL;
+}
+
+int netstack_iface_enumerate(const uint32_t* offsets, int n,
+                             void* objs, size_t obytes, unsigned flags,
+                             struct netstack_enumerator** streamer){
+  if(!validate_enumeration_flags(offsets, objs, obytes, n, flags, streamer)){
+    destroy_streamer(streamer);
+    return -1;
+  }
+  // FIXME enumerate!
+  return 0;
+}
+
 static inline void
 viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   netstack_iface* ni = vni;

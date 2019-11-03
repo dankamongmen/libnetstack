@@ -246,9 +246,13 @@ struct netstack_enumerator;
 // Enumerate up to n netstack_ifaces via copy. offsets must have space for at
 // least n elements, which will serve as offsets into objs. objs is a flat
 // array of size obytes. flags is a bitfield composed of the NETSTACK_ENUMERATE
-// constants.
-int netstack_iface_enumerate(const uint32_t* offsets, void* objs,
-                             size_t obytes, int n, unsigned flags,
+// constants. streamer ought point to a NULL netstack_enumerator to begin an
+// enumeration operation. Iff the enumeration completed (either successfully or
+// in an error), *streamer will be NULL on return. Otherwise, it will be set to
+// a non-NULL pointer, and netstack_iface_enumerate() should be called again
+// with this parameter to continue the enumeration.
+int netstack_iface_enumerate(const uint32_t* offsets, int n,
+                             void* objs, size_t obytes, unsigned flags,
                              struct netstack_enumerator** streamer);
 
 // Take a reference on some netstack iface for read-only use in the client.
