@@ -682,9 +682,19 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     RTM_GETNEIGH,
     RTM_GETROUTE,
   };
-  memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
-  ns->txqueue[sizeof(dumpmsgs) / sizeof(*dumpmsgs)] = -1;
-  ns->queueidx = sizeof(dumpmsgs) / sizeof(*dumpmsgs);
+  if(opts){
+    memcpy(&ns->opts, opts, sizeof(*opts));
+  }else{
+    memset(&ns->opts, 0, sizeof(ns->opts));
+  }
+  if(ns->opts.initial_events != NETSTACK_INITIAL_EVENTS_NONE){
+    memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
+    ns->txqueue[sizeof(dumpmsgs) / sizeof(*dumpmsgs)] = -1;
+    ns->queueidx = sizeof(dumpmsgs) / sizeof(*dumpmsgs);
+  }else{
+    ns->txqueue[0] = -1;
+    ns->queueidx = 0;
+  }
   ns->dequeueidx = 0;
   ns->clear_to_send = true;
   memset(&ns->iface_hash, 0, sizeof(ns->iface_hash));
@@ -740,11 +750,6 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
-  }
-  if(opts){
-    memcpy(&ns->opts, opts, sizeof(*opts));
-  }else{
-    memset(&ns->opts, 0, sizeof(ns->opts));
   }
   if(ns->opts.initial_events == NETSTACK_INITIAL_EVENTS_BLOCK){
     pthread_mutex_lock(&ns->txlock);
