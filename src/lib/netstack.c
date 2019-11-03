@@ -427,39 +427,43 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   // the hash as replaced, and should have its refcount dropped.
   netstack_iface* replaced = NULL;
   int hidx = iface_hash(ns, ni->ifi.ifi_index);
-  pthread_mutex_lock(&ns->hashlock);
-  netstack_iface** tmp = &ns->iface_hash[hidx];
-  if(etype != NETSTACK_DEL){ // insert into caches
-    name_trie_add(&ns->name_trie, ni);
-    ni->hnext = *tmp; // we always insert into the front of hlist
-    *tmp = ni;
-    tmp = &ni->hnext;
-  }else{ // purge from caches
-    name_trie_purge(&ns->name_trie, ni->name);
-  }
-  while(*tmp){ // need to see if one ought be removed (matches our key)
-    if((*tmp)->ifi.ifi_index == ni->ifi.ifi_index){
-      replaced = *tmp;
-      *tmp = (*tmp)->hnext;
-      break;
+  // If we're not tracking interfaces, we don't need to manipulate the cache at
+  // all, so skip all of this. We furthermore free the object before return.
+  if(!ns->opts.iface_notrack){
+    pthread_mutex_lock(&ns->hashlock);
+    netstack_iface** tmp = &ns->iface_hash[hidx];
+    if(etype != NETSTACK_DEL){ // insert into caches
+      name_trie_add(&ns->name_trie, ni);
+      ni->hnext = *tmp; // we always insert into the front of hlist
+      *tmp = ni;
+      tmp = &ni->hnext;
+    }else{ // purge from caches
+      name_trie_purge(&ns->name_trie, ni->name);
     }
-    tmp = &(*tmp)->hnext;
-  }
-  // We might have changed names (but retained our index). In this case, we've
-  // already added the new name (and iface) to the name_trie. In the case where
-  // we retained the name and idx, we've replaced the object in the name_trie.
-  // For the former case, we need remove the old name.
-  if(replaced && strcmp(ni->name, replaced->name)){
-    name_trie_purge(&ns->name_trie, replaced->name);
-  }
-  pthread_mutex_unlock(&ns->hashlock);
-  if(replaced){
-    netstack_iface_destroy(replaced);
+    while(*tmp){ // need to see if one ought be removed (matches our key)
+      if((*tmp)->ifi.ifi_index == ni->ifi.ifi_index){
+        replaced = *tmp;
+        *tmp = (*tmp)->hnext;
+        break;
+      }
+      tmp = &(*tmp)->hnext;
+    }
+    // We might have changed names (but retained our index). In this case, we've
+    // already added the new name (and iface) to the name_trie. In the case where
+    // we retained the name and idx, we've replaced the object in the name_trie.
+    // For the former case, we need remove the old name.
+    if(replaced && strcmp(ni->name, replaced->name)){
+      name_trie_purge(&ns->name_trie, replaced->name);
+    }
+    pthread_mutex_unlock(&ns->hashlock);
+    if(replaced){
+      netstack_iface_destroy(replaced);
+    }
   }
   if(ns->opts.iface_cb){
     ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
   }
-  if(etype == NETSTACK_DEL){
+  if(etype == NETSTACK_DEL || !ns->opts.iface_notrack){
     netstack_iface_destroy(ni);
   }
 }

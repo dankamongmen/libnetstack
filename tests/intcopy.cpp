@@ -29,20 +29,6 @@ IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   cc->mcond.notify_all();
 }
 
-static void
-IntShareCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
-  if(etype != NETSTACK_MOD){
-    return;
-  }
-  struct copycurry* cc = static_cast<struct copycurry*>(curry);
-  std::lock_guard<std::mutex> guard(cc->mlock);
-  if(cc->ni1 == NULL){ // only stash once
-    cc->ni1 = netstack_iface_share(ni);
-    cc->ni2 = netstack_iface_share(ni);
-  }
-  cc->mcond.notify_all();
-}
-
 // Test deep copying of an interface from within its callback context
 TEST(CopyIface, CallbackDeepCopy) {
   struct copycurry cc = { .ni1 = nullptr, .ni2 = nullptr, };
@@ -60,6 +46,20 @@ TEST(CopyIface, CallbackDeepCopy) {
   netstack_iface_abandon(cc.ni1);
   ASSERT_EQ(0, netstack_destroy(ns));
   netstack_iface_abandon(cc.ni2); // we should still be able to use it
+}
+
+static void
+IntShareCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
+  if(etype != NETSTACK_MOD){
+    return;
+  }
+  struct copycurry* cc = static_cast<struct copycurry*>(curry);
+  std::lock_guard<std::mutex> guard(cc->mlock);
+  if(cc->ni1 == NULL){ // only stash once
+    cc->ni1 = netstack_iface_share(ni);
+    cc->ni2 = netstack_iface_share(ni);
+  }
+  cc->mcond.notify_all();
 }
 
 // Test sharing of an interface from within its callback context
