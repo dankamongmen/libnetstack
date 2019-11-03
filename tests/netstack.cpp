@@ -41,7 +41,8 @@ TEST(Netstack, RefuseCurryWithoutCB) {
   ASSERT_EQ(0, netstack_destroy(ns));
 }
 
-void ifacecb(const netstack_iface* ni, netstack_event_e etype, void* curry) {
+void ifacecb(const netstack_iface* ni __attribute__ ((unused)),
+             netstack_event_e etype __attribute__ ((unused)), void* curry) {
   std::atomic<int>* post = static_cast<std::atomic<int>*>(curry);
   ++*post;
 }

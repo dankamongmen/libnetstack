@@ -434,8 +434,8 @@ validate_enumeration_flags(const uint32_t* offsets, int n, void* objs,
   if((obytes && !objs) || (!obytes && objs)){
     return false;
   }
-  if(streamer->nonce || streamer->slot || streamer->hnext){
-    return false; // FIXME not used yet
+  if(streamer && streamer->slot >= IFACE_HASH_SLOTS){
+    return false;
   }
   return true;
 }
@@ -464,7 +464,7 @@ int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int* n,
   int copied = 0;
   uint64_t copied_bytes = 0;
   netstack* unsafe_ns = (netstack*)ns;
-  // FIXME need to start at streamer, if non-zero
+  unsigned sslot = streamer ? streamer->slot : 0; // FIXME hnext/nonce
   pthread_mutex_lock(&unsafe_ns->hashlock);
   const size_t tsize = ns->iface_bytes;
   if(tsize > *obytes && !streamer){ // no streamer means atomic request
@@ -475,7 +475,7 @@ int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int* n,
   }
   unsigned z;
   const netstack_iface* ni;
-  for(z = 0 ; z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) ; ++z){
+  for(z = sslot ; z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) ; ++z){
     ni = ns->iface_hash[z];
     while(ni){
       if(copied == *n){
@@ -505,10 +505,21 @@ exhausted:
   // if we're not yet done, just out of memory, we need to set up streaming.
   // either way, set our new values.
   if(z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) || ni){
-    // FIXME streaming
+    *n -= copied;
+    *obytes -= copied_bytes;
+    streamer->nonce = 0; // FIXME
+    streamer->slot = z;
+    if(ni){
+      streamer->hnext = (uintptr_t)ni->hnext;
+    }else{
+      streamer->hnext = 0;
+    }
   }else{
     *n = 0;
     *obytes = 0;
+    streamer->nonce = 0;
+    streamer->slot = 0;
+    streamer->hnext = 0;
   }
   pthread_mutex_unlock(&unsafe_ns->hashlock);
   return copied;
