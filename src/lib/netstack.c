@@ -480,6 +480,8 @@ int netstack_iface_enumerate(const netstack* ns, const uint32_t* offsets, int n,
     destroy_streamer(streamer);
     return -1;
   }
+  int copied = 0;
+  uint64_t copied_bytes = 0;
   netstack* unsafe_ns = (netstack*)ns;
   const size_t tsize = ns->iface_bytes;
   pthread_mutex_lock(&unsafe_ns->hashlock);
@@ -487,9 +489,27 @@ int netstack_iface_enumerate(const netstack* ns, const uint32_t* offsets, int n,
     pthread_mutex_unlock(&unsafe_ns->hashlock);
     return -1;
   }
-  // FIXME enumerate!
+  unsigned z;
+  for(z = 0 ; z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) ; ++z){
+    const netstack_iface* ni = ns->iface_hash[z];
+    while(ni){
+      if(copied == n){
+        goto exhausted;
+      }
+      const size_t nisize = netstack_iface_size(ni);
+      if(obytes - copied_bytes < nisize){
+        goto exhausted;
+      }
+      // FIXME copy it!
+      ni = ni->hnext;
+      copied_bytes += nisize;
+      ++copied;
+    }
+  }
+exhausted:
+  // FIXME are we done? if not, set up streaming
   pthread_mutex_unlock(&unsafe_ns->hashlock);
-  return 0;
+  return copied;
 }
 
 static inline void
