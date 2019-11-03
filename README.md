@@ -50,7 +50,7 @@ struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 ```
 
-When done using the `netstack`, call `netstack_destroy()` to release its
+Once a `netstack` is no longer needed, call `netstack_destroy()` to release its
 resources and perform consistency checks. On failure, non-zero is returned, but
 this can usually be ignored by the caller.
 
