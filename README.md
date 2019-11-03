@@ -179,7 +179,7 @@ necessary that the caller either:
 All three mechanisms are supported. Each mechanism takes place while locking at
 least part of the `netstack` internals, possibly blocking other threads
 (including those of the `netstack` itself, potentially causing kernel events to
-be dropped). The first and third are the most generally useful ways to operate.
+be dropped). The first and third are generally the most useful ways to operate.
 
 When only a small amount of information is needed, the third method is
 simplest and most effective. The call is provided a key (interface index or
@@ -187,8 +187,7 @@ name). While locked, the corresponding object is found, and the appropriate
 data are copied out. The lock is released, and the copied data are returned.
 Note that it is impossible using this method to get an atomic view of
 multiple attributes, since the object might change (or be destroyed) between
-calls. Aside from when an attribute of variable length is returned, there is
-nothing to free.
+calls.
 
 When the object will be needed for multiple operations, it's generally better
 to use the reference-counter approach. Compared to the extraction method, this
