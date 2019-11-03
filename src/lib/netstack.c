@@ -423,18 +423,18 @@ static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 #endif
 
 static bool
-validate_enumeration_flags(const uint32_t* offsets, void* objs,
-                           size_t obytes, int n, unsigned flags,
+validate_enumeration_flags(const uint32_t* offsets, int n,
+                           void* objs, size_t obytes, unsigned flags,
                            struct netstack_enumerator** streamer){
   if(n < 0){ // in no case may n be negative
     return false;
   }
-  // ABORT cannot be set with any other flags, and requires a streamer. It is
-  // the only time offsets/objs/obytes/n can be invalid (though n must >= 0).
+  if(!streamer){ // in no case may streamer be NULL
+    return false;
+  }
+  // ABORT cannot be set with any other flags. It is the only time
+  // offsets/objs/obytes/n can be invalid (though n must >= 0).
   if(flags & NETSTACK_ENUMERATE_ABORT){
-    if(!*streamer){
-      return false;
-    }
     if(flags & ~NETSTACK_ENUMERATE_ABORT){
       return false;
     }
@@ -461,7 +461,7 @@ destroy_streamer(struct netstack_enumerator** streamer){
 int netstack_iface_enumerate(const uint32_t* offsets, int n,
                              void* objs, size_t obytes, unsigned flags,
                              struct netstack_enumerator** streamer){
-  if(!validate_enumeration_flags(offsets, objs, obytes, n, flags, streamer)){
+  if(!validate_enumeration_flags(offsets, n, objs, obytes, flags, streamer)){
     destroy_streamer(streamer);
     return -1;
   }
