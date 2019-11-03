@@ -380,7 +380,7 @@ static void
 netstack_iface_destroy(netstack_iface* ni){
   if(ni){
     int refs = atomic_fetch_sub(&ni->refcount, 1);
-    if(refs <= 1){
+    if(refs == 1){
       free(ni->rtabuf);
       free(ni);
     }
@@ -473,7 +473,7 @@ unsigned netstack_iface_count(const netstack* ns){
   return ret;
 }
 
-int netstack_iface_enumerate(const netstack* ns, const uint32_t* offsets, int n,
+int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int n,
                              void* objs, size_t obytes, unsigned flags,
                              struct netstack_enumerator** streamer){
   if(!validate_enumeration_flags(offsets, n, objs, obytes, flags, streamer)){
@@ -500,9 +500,19 @@ int netstack_iface_enumerate(const netstack* ns, const uint32_t* offsets, int n,
       if(obytes - copied_bytes < nisize){
         goto exhausted;
       }
-      // FIXME copy it!
+      offsets[copied] = copied_bytes; // where the new netstack_iface starts
+      netstack_iface* targni = (netstack_iface*)((char*)objs + copied_bytes);
+      memcpy(targni, ni, sizeof(*ni));
+      copied_bytes += sizeof(*ni);
+      targni->hnext = NULL;
+      // These don't need to be freed up -- all the resources have been
+      // provided by the caller. We only free when refs == 1, so init to 0.
+      atomic_init(&targni->refcount, 0);
+      targni->rtabuf = (struct rtattr*)((char*)objs + copied_bytes);
+      memcpy(targni->rtabuf, ni->rtabuf, ni->rtabuflen);
+      copied_bytes += ni->rtabuflen;
+      // copied_bytes ought have increased by netstack_iface_size() in total
       ni = ni->hnext;
-      copied_bytes += nisize;
       ++copied;
     }
   }

@@ -253,7 +253,7 @@ struct netstack_enumerator;
 // a non-NULL pointer, and netstack_iface_enumerate() should be called again
 // with this parameter to continue the enumeration.
 int netstack_iface_enumerate(const struct netstack* ns,
-                             const uint32_t* offsets, int n,
+                             uint32_t* offsets, int n,
                              void* objs, size_t obytes, unsigned flags,
                              struct netstack_enumerator** streamer);
 

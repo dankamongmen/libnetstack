@@ -52,7 +52,7 @@ TEST(Enumerate, AtomicRequiresSpace) {
   ASSERT_EQ(0, netstack_destroy(ns));
 }
 
-TEST(Enumerate, EnumerateCopies) {
+TEST(Enumerate, GetCopies) {
   netstack_opts nopts = { .initial_events = NETSTACK_INITIAL_EVENTS_BLOCK, };
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
@@ -60,7 +60,33 @@ TEST(Enumerate, EnumerateCopies) {
   // FIXME assumes there aren't *that* many devices on the host
   std::vector<char> buf(1u << 16);
   std::vector<uint32_t> offs(256);
-  ASSERT_LT(0, netstack_iface_enumerate(ns, offs.data(), offs.capacity() * sizeof(uint32_t),
-                                        buf.data(), buf.capacity(), 0, &nenum));
+  int enums = netstack_iface_enumerate(ns, offs.data(), offs.capacity() * sizeof(uint32_t),
+                                       buf.data(), buf.capacity(), 0, &nenum);
+  ASSERT_LT(0, enums);
   ASSERT_EQ(0, netstack_destroy(ns));
+}
+
+// you *should not* call netstack_iface_abandon() on enumerated results (you
+// provided the resources, after all). despite that, we try not to crash or
+// otherwise blow up if you do.
+TEST(Enumerate, ErroneouslyAbandon) {
+  netstack_opts nopts = { .initial_events = NETSTACK_INITIAL_EVENTS_BLOCK, };
+  struct netstack* ns = netstack_create(&nopts);
+  ASSERT_NE(nullptr, ns);
+  struct netstack_enumerator* nenum = nullptr;
+  // FIXME assumes there aren't *that* many devices on the host
+  std::vector<char> buf(1u << 16);
+  std::vector<uint32_t> offs(256);
+  int enums = netstack_iface_enumerate(ns, offs.data(), offs.capacity() * sizeof(uint32_t),
+                                       buf.data(), buf.capacity(), 0, &nenum);
+  ASSERT_LT(0, enums);
+  ASSERT_EQ(0, netstack_destroy(ns));
+  // DO NOT COPY-AND-PASTE
+  // ABANDON ALL HOPE YE WHO CALL NETSTACK_IFACE_ABANDON HERE
+  // IT IS NOT A SMART THING TO DO, AND WORKS ONLY ACCIDENT
+  // I JUST WANT TO KNOW IF IT STARTS TO BREAK
+  for(int z = 0 ; z < enums ; ++z){
+    netstack_iface_abandon(reinterpret_cast<struct netstack_iface*>(buf.data() + offs[z]));
+  }
+  // DO NOT COPY-AND-PASTE
 }
