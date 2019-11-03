@@ -105,7 +105,7 @@ netstack_rx_thread(void* vns){
   while((ret = nl_recvmsgs_default(ns->nl)) == 0){
     // FIXME ensure it matched what we expect?
     ns->clear_to_send = true;
-    pthread_cond_signal(&ns->txcond);
+    pthread_cond_broadcast(&ns->txcond);
   }
   fprintf(stderr, "Error rxing from netlink socket (%s)\n", nl_geterror(ret));
   // FIXME recover?
@@ -126,6 +126,7 @@ netstack_tx_thread(void* vns){
     pthread_mutex_lock(&ns->txlock);
     pthread_cleanup_push(tx_cancel_clean, ns);
     while(!ns->clear_to_send || ns->txqueue[ns->dequeueidx] == -1){
+      pthread_cond_signal(&ns->txcond);
       pthread_cond_wait(&ns->txcond, &ns->txlock);
     }
     ns->clear_to_send = false;
@@ -137,8 +138,7 @@ netstack_tx_thread(void* vns){
       // FIXME do what?
     }
     ns->txqueue[ns->dequeueidx++] = -1;
-    pthread_cleanup_pop(0);
-    pthread_mutex_unlock(&ns->txlock);
+    pthread_cleanup_pop(1);
   }
   return NULL;
 }
@@ -746,6 +746,13 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     memcpy(&ns->opts, opts, sizeof(*opts));
   }else{
     memset(&ns->opts, 0, sizeof(ns->opts));
+  }
+  if(ns->opts.initial_events == NETSTACK_INITIAL_EVENTS_BLOCK){
+    pthread_mutex_lock(&ns->txlock);
+    while(ns->txqueue[ns->dequeueidx] != -1){
+      pthread_cond_wait(&ns->txcond, &ns->txlock);
+    }
+    pthread_mutex_unlock(&ns->txlock);
   }
   return 0;
 }
