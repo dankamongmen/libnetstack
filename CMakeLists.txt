@@ -29,7 +29,7 @@ target_link_libraries(netstack
 )
 target_compile_options(netstack PRIVATE
   ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
-  -Wall -Wextra -W
+  -Wall -Wextra -W -Wshadow
 )
 
 add_library(netstack-static STATIC ${LIBSRCS})
@@ -49,14 +49,14 @@ target_link_libraries(netstack-static
 )
 target_compile_options(netstack-static PRIVATE
   ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
-  -Wall -Wextra -W
+  -Wall -Wextra -W -Wshadow
 )
 
 file(GLOB BINSRCS CONFIGURE_DEPENDS src/bin/*.c)
 add_executable(netstack-demo ${BINSRCS})
 target_include_directories(netstack-demo PRIVATE include)
 target_compile_options(netstack-demo PRIVATE
-  -Wall -Wextra
+  -Wall -Wextra -Wshadow
 )
 target_link_libraries(netstack-demo netstack)
 
@@ -66,6 +66,9 @@ find_package(GTest 1.9 REQUIRED)
 target_link_libraries(netstack-tester
   GTest::GTest
   netstack
+)
+target_compile_options(netstack-tester PRIVATE
+  -Wall -Wextra -Wshadow
 )
 target_include_directories(netstack-tester PRIVATE include)
 

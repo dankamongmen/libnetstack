@@ -38,8 +38,8 @@ TEST(Enumerate, GetCopies) {
     }
     wantn = nremaining;
     wantbytes = oremaining;
-    int nremaining = offs.capacity();
-    size_t oremaining = buf.capacity();
+    nremaining = offs.capacity();
+    oremaining = buf.capacity();
   }while(wantn || wantbytes);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
@@ -66,8 +66,8 @@ TEST(Enumerate, OneByOne) {
     }
     wantn = nremaining;
     wantbytes = oremaining;
-    int nremaining = offs.capacity();
-    size_t oremaining = buf.capacity();
+    nremaining = offs.capacity();
+    oremaining = buf.capacity();
   }while(wantn || wantbytes);
   ASSERT_EQ(0, netstack_destroy(ns));
 }

@@ -270,7 +270,7 @@ int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out);
 typedef struct netstack_enumerator {
   uint32_t nonce;
   uint32_t slot;
-  struct netstack_iface* hnext;
+  uintptr_t hnext;
 } netstack_enumerator;
 
 // Enumerate up to n netstack_ifaces via copy. offsets must have space for at
