@@ -463,7 +463,7 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   if(ns->opts.iface_cb){
     ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
   }
-  if(etype == NETSTACK_DEL || !ns->opts.iface_notrack){
+  if(etype == NETSTACK_DEL || ns->opts.iface_notrack){
     netstack_iface_destroy(ni);
   }
 }
