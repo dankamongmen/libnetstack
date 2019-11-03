@@ -14,7 +14,8 @@ struct copycurry {
 
 // Sets up the callback subject interface to be copied or shared by a thread
 // external to the libnetstack event engine.
-void ExternalCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
+static void
+ExternalCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   if(etype != NETSTACK_MOD){
     return;
   }
@@ -26,7 +27,7 @@ void ExternalCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
 }
 
 // Test deep copying of an interface from outside of its callback context
-TEST(CopyIface, IfaceDeepCopy) {
+TEST(IdxLookup, IfaceDeepCopy) {
   struct copycurry cc = { .idx = -1 };
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
@@ -52,8 +53,8 @@ TEST(CopyIface, IfaceDeepCopy) {
   netstack_iface_abandon(ni); // we should still be able to use it
 }
 
-// Test shring of an interface from outside of its callback context
-TEST(CopyIface, IfaceShare) {
+// Test sharing of an interface from outside of its callback context
+TEST(IdxLookup, IfaceShare) {
   struct copycurry cc = { .idx = -1 };
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));

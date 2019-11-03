@@ -15,7 +15,8 @@ struct copycurry {
 
 // Sets up the callback subject interface to be copied by the callback itself,
 // then handed to an external thread.
-void IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
+static void
+IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   if(etype != NETSTACK_MOD){
     return;
   }
@@ -28,7 +29,8 @@ void IntCopyCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   cc->mcond.notify_all();
 }
 
-void IntShareCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
+static void
+IntShareCB(const netstack_iface* ni, netstack_event_e etype, void* curry) {
   if(etype != NETSTACK_MOD){
     return;
   }
