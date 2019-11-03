@@ -458,21 +458,35 @@ destroy_streamer(struct netstack_enumerator** streamer){
   *streamer = NULL;
 }
 
-int netstack_iface_enumerate(const uint32_t* offsets, int n,
+// Size, in bytes, necessary to represent this ni (varies from ni to ni)
+static inline size_t
+netstack_iface_size(const netstack_iface* ni){
+  return sizeof(ni) + ni->rtabuflen;
+}
+
+unsigned netstack_iface_count(const netstack* ns){
+  netstack* unsafe_ns = (netstack*)ns;
+  unsigned ret;
+  pthread_mutex_lock(&unsafe_ns->hashlock);
+  ret = ns->iface_count;
+  pthread_mutex_unlock(&unsafe_ns->hashlock);
+  return ret;
+}
+
+int netstack_iface_enumerate(const struct netstack* ns,
+                             const uint32_t* offsets, int n,
                              void* objs, size_t obytes, unsigned flags,
                              struct netstack_enumerator** streamer){
   if(!validate_enumeration_flags(offsets, n, objs, obytes, flags, streamer)){
     destroy_streamer(streamer);
     return -1;
   }
+  const size_t tsize = netstack_iface_size(ns);
+  if(tsize > obytes && (flags & NETSTACK_ENUMERATE_ATOMIC)){
+    return -1;
+  }
   // FIXME enumerate!
   return 0;
-}
-
-// Size, in bytes, necessary to represent this ni (varies from ni to ni)
-static inline size_t
-netstack_iface_size(const netstack_iface* ni){
-  return sizeof(ni) + ni->rtabuflen;
 }
 
 static inline void
@@ -928,15 +942,6 @@ const netstack_iface* netstack_iface_share(const netstack_iface* ni){
 void netstack_iface_abandon(const netstack_iface* ni){
   netstack_iface* unsafe_ni = (netstack_iface*)ni;
   netstack_iface_destroy(unsafe_ni);
-}
-
-unsigned netstack_iface_count(const netstack* ns){
-  netstack* unsafe_ns = (netstack*)ns;
-  unsigned ret;
-  pthread_mutex_lock(&unsafe_ns->hashlock);
-  ret = ns->iface_count;
-  pthread_mutex_unlock(&unsafe_ns->hashlock);
-  return ret;
 }
 
 uint64_t netstack_iface_bytes(const netstack* ns){

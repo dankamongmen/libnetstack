@@ -1,8 +1,8 @@
 #include <atomic>
 #include "main.h"
 
-TEST(Netstack, CreateNULLOpts) {
-  struct netstack* ns = netstack_create(NULL);
+TEST(Netstack, CreatenullptrOpts) {
+  struct netstack* ns = netstack_create(nullptr);
   ASSERT_NE(nullptr, ns);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
@@ -22,19 +22,19 @@ TEST(Netstack, RefuseCurryWithoutCB) {
   nopts.iface_curry = &nopts;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_EQ(nullptr, ns);
-  nopts.iface_curry = NULL;
+  nopts.iface_curry = nullptr;
   nopts.addr_curry = &nopts;
   ns = netstack_create(&nopts);
   ASSERT_EQ(nullptr, ns);
-  nopts.addr_curry = NULL;
+  nopts.addr_curry = nullptr;
   nopts.route_curry = &nopts;
   ns = netstack_create(&nopts);
   ASSERT_EQ(nullptr, ns);
-  nopts.route_curry = NULL;
+  nopts.route_curry = nullptr;
   nopts.neigh_curry = &nopts;
   ns = netstack_create(&nopts);
   ASSERT_EQ(nullptr, ns);
-  nopts.neigh_curry = NULL;
+  nopts.neigh_curry = nullptr;
   // we ought now be able to create successfully
   ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
