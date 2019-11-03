@@ -285,8 +285,8 @@ buffer of some size (`obytes`). No more than `N` objects will be enumerated. If
 enumerated. The number of objects enumerated is returned, or -1 on error.
 
 ```
-int netstack_iface_enumerate(const uint32_t* offsets, void* objs,
-                             size_t obytes, int n, unsigned flags,
+int netstack_iface_enumerate(const uint32_t* offsets, int n,
+                             void* objs, size_t obytes, unsigned flags,
                              struct netstack_enumerator** streamer);
 
 // If there is not sufficient room in the buffers to copy all of the objects in
