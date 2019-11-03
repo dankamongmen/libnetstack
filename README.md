@@ -18,19 +18,20 @@ elements up-to-date based on netlink, and the user can query this cache at any
 time. Design goals included minimal footprints for both memory and compute,
 while supporting fast lookups in the presence of millions of routes.
 
-* [libnetstack](#libnetstack)
-  * [Why not just use libnl-route?](#why-not-just-use-libnl-route)
-      * [Why not just use ioctl()s, as Stevens taught us?](#why-not-just-use-ioctls-as-stevens-taught-us)
-      * [Why not just use netlink(3) directly?](#why-not-just-use-netlink3-directly)
+* [Why not just use libnl-route?](#why-not-just-use-libnl-route)
+  * [Why not just use ioctl()s, as Stevens taught us?](#why-not-just-use-ioctls-as-stevens-taught-us)
+  * [Why not just use netlink(3) directly?](#why-not-just-use-netlink3-directly)
+* [Getting libnetstack](#getting-libnetstack)
+  * [Packages](#packages)
   * [Requirements](#requirements)
-  * [Use](#use)
-      * [Initial enumeration events](#initial-enumeration-events)
-      * [Object types](#object-types)
-      * [Options](#options)
-      * [Accessing cached objects](#accessing-cached-objects)
-      * [Enumerating cached objects](#enumerating-cached-objects)
-      * [Querying objects](#querying-objects)
-
+  * [Building](#building)
+* [Use](#use)
+  * [Initial enumeration events](#initial-enumeration-events)
+  * [Object types](#object-types)
+  * [Options](#options)
+  * [Accessing cached objects](#accessing-cached-objects)
+  * [Enumerating cached objects](#enumerating-cached-objects)
+  * [Querying objects](#querying-objects)
 
 ## Why not just use [libnl-route](https://www.infradead.org/~tgr/libnl/doc/api/group__rtnl.html)?
 
@@ -56,10 +57,24 @@ mechanisms require polling, and are incomplete compared to rtnetlink(7).
 
 It's a tremendous pain in the ass, I assure you.
 
-## Requirements
+## Getting libnetstack
+
+### Packages
+
+libnetstack is present in the [AUR](https://aur.archlinux.org/packages/libnetstack/).
+
+Debian Unstable packages are available from [DSSCAW](https://www.dsscaw.com/apt.html).
+
+### Requirements
 
 * Core library: CMake, a C11 compiler, and libnl 3.4.0+
 * Tests: a C++14 compiler and GoogleTest 1.9.0+
+
+### Building
+
+`mkdir build && cd build && cmake .. && make && make test && sudo make install`
+
+You know the drill.
 
 ## Use
 
@@ -308,9 +323,17 @@ enumeration is completed by the call (or if there is an error). Otherwise,
 to do so is a memory leak. `NETSTACK_ENUMERATE_ABORT` can be used to stop
 enumerating, but either way, `netstack_iface_enumerate` should be called.
 
+For a positive return value _r_, the _r_ values returned in `offsets` index
+into `objs`. Each one is a (suitably-aligned) `struct netstack_iface`. These
+`netstack_iface`s do *not* need to be fed to `netstack_iface_abandon()`.
+
 An enumeration returning an error cannot be restarted. `streamer` will be set
 to NULL (and its resources will be released) on any error.
 
 ### Querying objects
 
 FIXME
+
+### Examples
+
+
