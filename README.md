@@ -5,6 +5,10 @@ by Nick Black <dankamongmen@gmail.com>
 
 [![Build Status](https://drone.dsscaw.com:4443/api/badges/dankamongmen/libnetstack/status.svg)](https://drone.dsscaw.com:4443/dankamongmen/libnetstack)
 
+<p align="center">
+<img width="640" height="320" src="tools/libnetstack.jpg"/>
+</p>
+
 libnetstack allows `netstack` objects to be created, queried, and destroyed.
 When created, a `netstack` discovers all networking elements in its network
 namespace (interfaces, routes, addresses, neighbors, etc.—see `CLONE_NET`), and
@@ -173,7 +177,3 @@ Whether deep-copied or shared, the object can and must be abandoned via
 `netstack_iface_abandon()`. This should be done even if the `netstack` is
 destroyed, with the implication that both shared and copied `netstack_iface`s
 remains valid after a call to `netstack_destroy()`.
-
-<p align="center">
-<img width="1280" height="640" src="tools/libnetstack.jpg"/>
-</p>
