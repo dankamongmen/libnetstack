@@ -39,9 +39,9 @@ Libnetstack is Apache-licensed, whereas libnl-route is LGPL.
 
 ## Use
 
-First, a `struct netstack` must be created using `netstack_create()`. It
+A `struct netstack` must first be created using `netstack_create()`. This
 accepts a `netstack_opts` structure for configuration, including specification
-of callbacks. On failure, NULL is returned. A program may have an many
+of callbacks. On failure, `NULL` is returned. A program may have an many
 netstacks as it likes, though I don't personally see much point in more than
 one in a process. This does not require any special privileges.
 
@@ -110,8 +110,8 @@ Multicast support is planned.
 
 Usually, the caller will want to at least configure some callbacks using the
 `netstack_opts` structure passed to `netstack_create()`. A callback and a curry
-may be configured for each different kind of object. If the callback is NULL,
-the curry must also be NULL.
+may be configured for each different kind of object. If the callback is `NULL`,
+the curry must also be `NULL`.
 
 ```
 // The default for all members is false or the appropriate zero representation.
