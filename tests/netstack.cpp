@@ -76,13 +76,15 @@ TEST(Netstack, CreateInitialEventsBlock) {
   ASSERT_EQ(postcopy, post);
 }
 
-TEST(Netstack, IfaceCount) {
+// verify that iface_count and iface_bytes are non-zero (assumes a device FIXME)
+TEST(Netstack, IfaceCacheStats) {
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
   ASSERT_NE(0, netstack_iface_count(ns));
+  ASSERT_NE(0, netstack_iface_bytes(ns));
   ASSERT_EQ(0, netstack_destroy(ns));
 }
 

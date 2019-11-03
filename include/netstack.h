@@ -240,8 +240,8 @@ struct netstack_enumerator;
 // a single atomic operation, return -1 and perform as little work as possible.
 #define NETSTACK_ENUMERATE_ATOMIC  0x0001
 #define NETSTACK_ENUMERATE_MINIMAL 0x0002 // Copy only the most important data
-// Abort the enumeration operation. streamer should be non-NULL. No other flags
-// may be set in comvination with NETSTACK_ENUMERATE_ABORT.
+// Abort the enumeration operation. should be non-NULL, though this is not
+// enforced. No other flags may be set with NETSTACK_ENUMERATE_ABORT.
 #define NETSTACK_ENUMERATE_ABORT   0x0004
 
 // Enumerate up to n netstack_ifaces via copy. offsets must have space for at
