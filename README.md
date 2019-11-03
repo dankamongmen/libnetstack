@@ -171,11 +171,9 @@ Since events can arrive at any time, invalidating the object cache, it is
 necessary that the caller either:
 
 * increment a reference counter, yielding a pointer to an immutable object
-   which must be referenced down, (`netstack_iface_share_byname()` /
-   `netstack_iface_share_byidx()`),
+   which must be referenced down,
 * deep-copy objects out upon access, yielding a mutable object which must be
-   destroyed (`netstack_iface_copy_byname()` / `netstack_iface_copy_byidx()`),
-   or
+   destroyed, or
 * extract any elements (via copy) without gaining access to the greater object.
 
 All three mechanisms are supported. Each mechanism takes place while locking at
@@ -201,11 +199,49 @@ situation to share the same key, something that never happens in the real world
 (or in the `netstack`'s cache). Failing to down the reference counter is
 effectively a memory leak.
 
+```
+// Take a reference on some netstack iface for read-only use in the client.
+// There is no copy, but the object still needs to be freed by a call to
+// netstack_iface_abandon().
+const struct netstack_iface* netstack_iface_share_byname(struct netstack* ns, const char* name);
+const struct netstack_iface* netstack_iface_share_byidx(struct netstack* ns, int idx);
+```
+
 The second mechanism, a deep copy, is only rarely useful. It leaves no residue
 outside the caller, and is never shared when created. This could be important
 for certain control flows and memory architectures.
+
+```
+// Copy out a netstack iface for arbitrary use in the client. This is a
+// heavyweight copy, and must be freed using netstack_iface_destroy(). You
+// would usually be better served by netstack_iface_share_*().
+struct netstack_iface* netstack_iface_copy_byname(struct netstack* ns, const char* name);
+struct netstack_iface* netstack_iface_copy_byidx(struct netstack* ns, int idx);
+```
+
+Shares and copies can occur from within a callback. If you want to use the
+object that was provided in the callback, this can be done without a lookup
+or taking any additional locks:
+
+```
+// Copy/share a netstack_iface to which we already have a handle, for
+// instance directly from the callback context. This is faster than the
+// alternatives, as it needn't perform a lookup.
+const struct netstack_iface* netstack_iface_share(const struct netstack_iface* ni);
+struct netstack_iface* netstack_iface_copy(const struct netstack_iface* ni);
+```
 
 Whether deep-copied or shared, the object can and should be abandoned via
 `netstack_iface_abandon()`. This should be done even if the `netstack` is
 destroyed, with the implication that both shared and copied `netstack_iface`s
 remains valid after a call to `netstack_destroy()`.
+
+```
+// Release a netstack_iface acquired from the netstack through either a copy or
+// a share operation. Note that while the signature claims constness, ns will
+// actually presumably be mutated (via alias). It is thus imperative that the
+// passed object not be used again by the caller!
+void netstack_iface_abandon(const struct netstack_iface* ni);
+```
+
+### Working with objects
