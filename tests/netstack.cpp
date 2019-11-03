@@ -83,8 +83,9 @@ TEST(Netstack, IfaceCacheStats) {
   nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
-  ASSERT_NE(0, netstack_iface_count(ns));
-  ASSERT_NE(0, netstack_iface_bytes(ns));
+  unsigned count = netstack_iface_count(ns);
+  ASSERT_NE(0, count);
+  ASSERT_LT(count, netstack_iface_bytes(ns));
   ASSERT_EQ(0, netstack_destroy(ns));
 }
 

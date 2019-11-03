@@ -469,12 +469,19 @@ int netstack_iface_enumerate(const uint32_t* offsets, int n,
   return 0;
 }
 
+// Size, in bytes, necessary to represent this ni (varies from ni to ni)
+static inline size_t
+netstack_iface_size(const netstack_iface* ni){
+  return sizeof(ni) + ni->rtabuflen;
+}
+
 static inline void
 viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   netstack_iface* ni = vni;
   // We might be replacing some previous element. If so, that one comes out of
   // the hash as replaced, and should have its refcount dropped.
   netstack_iface* replaced = NULL;
+  const size_t nisize = netstack_iface_size(ni);
   int hidx = iface_hash(ns, ni->ifi.ifi_index);
   // If we're not tracking interfaces, we don't need to manipulate the cache at
   // all, so skip all of this. We furthermore free the object before return.
@@ -487,9 +494,12 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
       *tmp = ni;
       tmp = &ni->hnext;
       ++ns->iface_count;
+      ns->iface_bytes += nisize;
     }else{ // purge from caches
-      if(name_trie_purge(&ns->name_trie, ni->name)){
+      netstack_iface* purged = name_trie_purge(&ns->name_trie, ni->name);
+      if(purged){
         --ns->iface_count;
+        ns->iface_bytes -= netstack_iface_size(purged);
       }
     }
     while(*tmp){ // need to see if one ought be removed (matches our key)
@@ -507,6 +517,7 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
     if(replaced && strcmp(ni->name, replaced->name)){
       name_trie_purge(&ns->name_trie, replaced->name);
       --ns->iface_count;
+      ns->iface_bytes -= netstack_iface_size(replaced);
     }
     pthread_mutex_unlock(&ns->hashlock);
     if(replaced){
