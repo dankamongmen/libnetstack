@@ -158,7 +158,7 @@ Since events can arrive at any time, invalidating the object cache, it is
 necessary that the caller either:
 
 * increment a reference counter, yielding a pointer to an immutable object
-   which must be referenced down (`netstack_iface_share_byname()` /
+   which must be referenced down, (`netstack_iface_share_byname()` /
    `netstack_iface_share_byidx()`),
 * deep-copy objects out upon access, yielding a mutable object which must be
    destroyed (`netstack_iface_copy_byname()` / `netstack_iface_copy_byidx()`),
@@ -166,8 +166,8 @@ necessary that the caller either:
 * extract any elements (via copy) without gaining access to the greater object.
 
 All three mechanisms are supported. Each mechanism takes place while locking at
-least part of the netstack internals, possibly blocking other threads
-(including those of the netstack itself, potentially causing kernel events to
+least part of the `netstack` internals, possibly blocking other threads
+(including those of the `netstack` itself, potentially causing kernel events to
 be dropped). The first and third are the most generally useful ways to operate.
 
 When only a small amount of information is needed, the third method is
@@ -182,17 +182,17 @@ nothing to free.
 When the object will be needed for multiple operations, it's generally better
 to use the reference-counter approach. Compared to the extraction method, this
 allows atomic inspection of multiple attributes, and requires only one lookup
-instead of N. While the object is held, it cannot be destroyed by the netstack,
+instead of N. While the object is held, it cannot be destroyed by the `netstack`,
 but it might be replaced. It is thus possible for multiple objects in this
 situation to share the same key, something that never happens in the real world
-(or in the netstack cache). Failing to down the reference counter is
+(or in the `netstack`'s cache). Failing to down the reference counter is
 effectively a memory leak.
 
 The second mechanism, a deep copy, is only rarely useful. It leaves no residue
 outside the caller, and is never shared when created. This could be important
 for certain control flows and memory architectures.
 
-Whether deep-copied or shared, the object can and must be abandoned via
+Whether deep-copied or shared, the object can and should be abandoned via
 `netstack_iface_abandon()`. This should be done even if the `netstack` is
 destroyed, with the implication that both shared and copied `netstack_iface`s
 remains valid after a call to `netstack_destroy()`.
