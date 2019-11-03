@@ -445,12 +445,22 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
     }
     tmp = &(*tmp)->hnext;
   }
+  // We might have changed names (but retained our index). In this case, we've
+  // already added the new name (and iface) to the name_trie. In the case where
+  // we retained the name and idx, we've replaced the object in the name_trie.
+  // For the former case, we need remove the old name.
+  if(replaced && strcmp(ni->name, replaced->name)){
+    name_trie_purge(&ns->name_trie, replaced->name);
+  }
   pthread_mutex_unlock(&ns->hashlock);
   if(replaced){
     netstack_iface_destroy(replaced);
   }
   if(ns->opts.iface_cb){
     ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
+  }
+  if(etype == NETSTACK_DEL){
+    netstack_iface_destroy(ni);
   }
 }
 
