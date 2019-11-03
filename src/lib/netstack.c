@@ -110,6 +110,33 @@ destroy_name_trie(name_node* node){
   }
 }
 
+static name_node*
+create_name_node(netstack_iface* iface){
+  name_node* n = malloc(sizeof(*n));
+  if(n){
+    memset(n, 0, sizeof(*n));
+    n->iface = iface;
+  }
+  return n;
+}
+
+// Returns any netstack_iface we happen to replace
+static name_node*
+name_trie_add(name_node** node, netstack_iface* ni){
+  const char* name = ni->name;
+  while(*name){
+    if(*node == NULL){
+      if((*node = create_name_node(NULL)) == NULL){
+        return NULL; // FIXME remove added nodes?
+      }
+    }
+    node = &((*node)->array[*(const unsigned char*)(name++)]);
+  }
+  name_node* replaced = *node;
+  *node = create_name_node(ni);
+  return replaced;
+}
+
 static inline int
 iface_hash(const netstack* ns, int index){
   return index % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
@@ -384,10 +411,11 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   netstack_iface* replaced = NULL;
   int hidx = iface_hash(ns, ni->ifi.ifi_index);
   pthread_mutex_lock(&ns->hashlock);
-  ni->hnext = ns->iface_hash[hidx];
+  name_trie_add(&ns->name_trie, ni);
+  ni->hnext = ns->iface_hash[hidx]; // we always insert into the front of hlist
   ns->iface_hash[hidx] = ni;
   netstack_iface** tmp = &ni->hnext;
-  while(*tmp){
+  while(*tmp){ // need to see if one ought be removed (matches our key)
     if((*tmp)->ifi.ifi_index == ni->ifi.ifi_index){
       replaced = *tmp;
       *tmp = (*tmp)->hnext;
@@ -592,6 +620,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   }
   ns->dequeueidx = 0;
   ns->clear_to_send = true;
+  ns->name_trie = NULL;
   memset(&ns->iface_hash, 0, sizeof(ns->iface_hash));
   if((ns->nl = nl_socket_alloc()) == NULL){
     return -1;
