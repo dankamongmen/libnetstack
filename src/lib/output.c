@@ -12,33 +12,25 @@ const char* family_to_str(unsigned family){
   }
 }
 
-// Each byte becomes two ASCII characters + separator or nul
-static inline size_t
-hwaddrstrlen(size_t addrlen){
-  return ((addrlen) == 0 ? 1 : (addrlen == 1) ? 2 : (addrlen) * 3);
-}
-
-// buf must be at least slen bytes
-static void*
-l2ntop(const void *hwaddr, size_t slen, size_t alen, char* buf){
-  if(alen){
+static char*
+netstack_l2addrstr(int l2type, size_t len, const void* addr){
+  (void)l2type; // FIXME need for quirks
+  // Each byte becomes two ASCII characters + separator or nul
+  size_t slen = ((len) == 0 ? 1 : (len == 1) ? 2 : (len) * 3);
+  char* ret = malloc(slen);
+  if(ret == NULL){
+    return NULL;
+  }
+  if(len){
     unsigned idx;
-    for(idx = 0 ; idx < alen ; ++idx){
-      snprintf(buf + idx * 3, slen - idx * 3, "%02x:",
-               ((const unsigned char *)hwaddr)[idx]);
+    for(idx = 0 ; idx < len ; ++idx){
+      snprintf(ret + idx * 3, slen - idx * 3, "%02x:",
+               ((const unsigned char *)addr)[idx]);
     }
   }else{
-    buf[0] = '\0';
+    ret[0] = '\0';
   }
-  return buf;
-}
-
-static char*
-l2addrstr(int l2type, size_t len, const void* addr){
-  (void)l2type; // FIXME need for quirks
-  size_t slen = hwaddrstrlen(len);
-  char* ret = malloc(slen);
-  return l2ntop(addr, slen, len, ret);
+  return ret;
 }
 
 int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
@@ -46,8 +38,8 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
   const struct rtattr* llrta = netstack_iface_attr(ni, IFLA_ADDRESS);
   char* llstr = NULL;
   if(llrta){
-    llstr = l2addrstr(netstack_iface_family(ni), RTA_PAYLOAD(llrta),
-                      RTA_DATA(llrta));
+    llstr = netstack_l2addrstr(netstack_iface_family(ni), RTA_PAYLOAD(llrta),
+                               RTA_DATA(llrta));
   }
   char name[IFNAMSIZ];
   ret = fprintf(out, "%3d [%s] %u %s%smtu %u\n", netstack_iface_index(ni),
@@ -143,7 +135,7 @@ int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out){
   int ret = 0;
   const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
   if(l2rta){
-    char* llstr = l2addrstr(0, RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
+    char* llstr = netstack_l2addrstr(0, RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
     if(!llstr){
       return -1;
     }
