@@ -233,6 +233,24 @@ int netstack_destroy(struct netstack* ns);
 // always return 0.
 unsigned netstack_iface_count(const struct netstack* ns);
 
+struct netstack_enumerator;
+
+// If there is not sufficient room in the buffers to copy all of the objects in
+// a single atomic operation, return -1 and perform as little work as possible.
+#define NETSTACK_ENUMERATE_ATOMIC  0x0001
+#define NETSTACK_ENUMERATE_MINIMAL 0x0002 // Copy only the most important data
+// Abort the enumeration operation. streamer should be non-NULL. No other flags
+// may be set in comvination with NETSTACK_ENUMERATE_ABORT.
+#define NETSTACK_ENUMERATE_ABORT   0x0004
+
+// Enumerate up to n netstack_ifaces via copy. offsets must have space for at
+// least n elements, which will serve as offsets into objs. objs is a flat
+// array of size obytes. flags is a bitfield composed of the NETSTACK_ENUMERATE
+// constants.
+int netstack_iface_enumerate(const uint32_t* offsets, void* objs,
+                             size_t obytes, int n, unsigned flags,
+                             struct netstack_enumerator** streamer);
+
 // Take a reference on some netstack iface for read-only use in the client.
 // There is no copy, but the object still needs to be freed by a call to
 // netstack_iface_abandon().
