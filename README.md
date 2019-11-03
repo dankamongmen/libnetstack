@@ -282,20 +282,32 @@ buffers must be provided for an enumeration request of up to `N` objects:
 `offsets`, an array of `N` 4-byte unsigned integers, and `objs`, a character
 buffer of some size (`obytes`). No more than `N` objects will be enumerated. If
 `objs` becomes exhausted, or `N` objects do not exist, fewer than `N` will be
-enumerated. The number of objects enumerated is returned.
+enumerated. The number of objects enumerated is returned, or -1 on error.
 
 ```
 int netstack_iface_enumerate(const uint32_t* offsets, void* objs,
-                             size_t obytes, int n, unsigned flags);
+                             size_t obytes, int n, unsigned flags,
+                             struct netstack_enumerator** streamer);
+
+// If there is not sufficient room in the buffers to copy all of the objects in
+// a single atomic operation, return -1 and perform as little work as possible.
+#define NETSTACK_ENUMERATE_ATOMIC  0x0001
+#define NETSTACK_ENUMERATE_MINIMAL 0x0002 // Copy only the most important data
+// Abort the enumeration operation. streamer should be non-NULL. No other flags
+// may be set in comvination with NETSTACK_ENUMERATE_ABORT.
+#define NETSTACK_ENUMERATE_ABORT   0x0004
 ```
 
-The `flags` parameter is a bitmask:
+The `streamer` parameter is used to stream through the objects. It must point
+to a `NULL` pointer to `struct netmask_enumerator` on the first call of an
+enumeration operation. `streamer` will be set to `NULL` if and only if the
+enumeration is completed by the call (or if there is an error). Otherwise,
+`netstack_iface_enumerate` must be called again to continue streaming. Failure
+to do so is a memory leak. `NETSTACK_ENUMERATE_ABORT` can be used to stop
+enumerating, but either way, `netstack_iface_enumerate` should be called.
 
-* `NETSTACK_ENUMERATE_ATOMIC`: Only operate if we can copy the entire set into
-    the provided buffers (note that it might not be possible to determine this
-    without performing some copies). Return -1 if we can't.
-* `NETSTACK_ENUMERATE_MINIMAL`: Copy only the most relevant of data. For what
-    data is copied, see "[Querying objects](#querying-objects)" below.
+An enumeration returning an error cannot be restarted. `streamer` will be set
+to NULL (and its resources will be released) on any error.
 
 ### Querying objects
 
