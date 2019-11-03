@@ -28,7 +28,9 @@ while supporting fast lookups in the presence of millions of routes.
       * [Object types](#object-types)
       * [Options](#options)
       * [Accessing cached objects](#accessing-cached-objects)
-      * [Working with objects](#working-with-objects)
+      * [Enumerating cached objects](#enumerating-cached-objects)
+      * [Querying objects](#querying-objects)
+
 
 ## Why not just use [libnl-route](https://www.infradead.org/~tgr/libnl/doc/api/group__rtnl.html)?
 
@@ -199,7 +201,7 @@ name). While locked, the corresponding object is found, and the appropriate
 data are copied out. The lock is released, and the copied data are returned.
 Note that it is impossible using this method to get an atomic view of
 multiple attributes, since the object might change (or be destroyed) between
-calls.
+calls. For the API, see "[Querying objects](#querying-objects)" below.
 
 When the object will be needed for multiple operations, it's generally better
 to use the reference-counter approach. Compared to the extraction method, this
@@ -255,4 +257,46 @@ remains valid after a call to `netstack_destroy()`.
 void netstack_iface_abandon(const struct netstack_iface* ni);
 ```
 
-### Working with objects
+### Enumerating cached objects
+
+It is possible to get all the cached objects of a type via enumeration. This
+requires providing a (possibly large) buffer into which data will be copied.
+If the buffer is not large enough to hold all the objects, another call can be
+made to get the next batch (it is technically possible to enumerate the objects
+one-by-one using this method), but this is not guaranteed to be an atomic view
+of the object class.
+
+The number of objects currently cached can be queried, though this is no
+guarantee that the number won't have changed by the time a subsequent
+enumeration is requested:
+
+```
+// Count of interfaces in the active store. If iface_notrack is set, this will
+// always return 0.
+unsigned netstack_iface_count(const struct netstack* ns);
+```
+
+Enumeration currently always takes the form of a copy, never a share (shared
+enumerations will be added if a compelling reason for them is found). Two
+buffers must be provided for an enumeration request of up to `N` objects:
+`offsets`, an array of `N` 4-byte unsigned integers, and `objs`, a character
+buffer of some size (`obytes`). No more than `N` objects will be enumerated. If
+`objs` becomes exhausted, or `N` objects do not exist, fewer than `N` will be
+enumerated. The number of objects enumerated is returned.
+
+```
+int netstack_iface_enumerate(const uint32_t* offsets, void* objs,
+                             size_t obytes, int n, unsigned flags);
+```
+
+The `flags` parameter is a bitmask:
+
+* `NETSTACK_ENUMERATE_ATOMIC`: Only operate if we can copy the entire set into
+    the provided buffers (note that it might not be possible to determine this
+    without performing some copies). Return -1 if we can't.
+* `NETSTACK_ENUMERATE_MINIMAL`: Copy only the most relevant of data. For what
+    data is copied, see "[Querying objects](#querying-objects)" below.
+
+### Querying objects
+
+FIXME
