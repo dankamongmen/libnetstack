@@ -110,16 +110,6 @@ destroy_name_trie(name_node* node){
   }
 }
 
-const netstack_iface* lookup_name(const name_node* array, const char* name){
-  while(array){
-    if(!*name){
-      return array->iface;
-    }
-    array = array->array[*(const unsigned char*)(name++)];
-  }
-  return NULL;
-}
-
 static inline int
 iface_hash(const netstack* ns, int index){
   return index % (sizeof(ns->iface_hash) / sizeof(*ns->iface_hash));
@@ -835,15 +825,37 @@ int netstack_destroy(netstack* ns){
   return ret;
 }
 
+static netstack_iface*
+netstack_iface_byname(const name_node* array, const char* name){
+  while(array){
+    if(!*name){
+      return array->iface;
+    }
+    array = array->array[*(const unsigned char*)(name++)];
+  }
+  return NULL;
+}
+
 netstack_iface* netstack_iface_copy_byname(netstack* ns, const char* name){
-  netstack_iface* ni;
-  (void)ns; (void)name; ni = NULL; // FIXME
-  return ni;
+  netstack_iface* ret;
+  pthread_mutex_lock(&ns->hashlock);
+  netstack_iface* ni = netstack_iface_byname(ns->name_trie, name);
+  if(ni){
+    ret = create_iface(ni->rtabuf, ni->rtabuflen);
+  }else{
+    ret = NULL;
+  }
+  pthread_mutex_unlock(&ns->hashlock);
+  return ret;
 }
 
 const netstack_iface* netstack_iface_share_byname(netstack* ns, const char* name){
-  netstack_iface* ni;
-  (void)ns; (void)name; ni = NULL; // FIXME
+  pthread_mutex_lock(&ns->hashlock);
+  netstack_iface* ni = netstack_iface_byname(ns->name_trie, name);
+  if(ni){
+    atomic_fetch_add(&ni->refcount, 1);
+  }
+  pthread_mutex_unlock(&ns->hashlock);
   return ni;
 }
 

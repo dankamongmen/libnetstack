@@ -1,5 +1,5 @@
 # libnetstack
-Small C library for networking stack query / events
+A small C library for tracking and querying the local networking stack
 
 by Nick Black <dankamongmen@gmail.com>
 
