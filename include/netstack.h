@@ -19,8 +19,8 @@ extern "C" {
 
 // Libnetstack provides an interface to the rtnetlink(7) functionality of the
 // Linux kernel (though nothing keeps it from being ported to other operating
-// systems), and an indexed state reflecting some network namespace (see
-// clone(2)'s description of CLONE_NEWNET, and ip-netns(8)).
+// systems with similar capabilities), and an indexed state reflecting some
+// network namespace (see clone(2)'s CLONE_NEWNET, and ip-netns(8)).
 //
 // Upon creation, it subscribes to various netlink events, and then dumps the
 // rtnetlink tables. It thus maintains an accurate picture of the underlying
@@ -234,29 +234,6 @@ int netstack_destroy(struct netstack* ns);
 unsigned netstack_iface_count(const struct netstack* ns);
 uint64_t netstack_iface_bytes(const struct netstack* ns);
 
-struct netstack_enumerator;
-
-// If there is not sufficient room in the buffers to copy all of the objects in
-// a single atomic operation, return -1 and perform as little work as possible.
-#define NETSTACK_ENUMERATE_ATOMIC  0x0001
-#define NETSTACK_ENUMERATE_MINIMAL 0x0002 // Copy only the most important data
-// Abort the enumeration operation. should be non-NULL, though this is not
-// enforced. No other flags may be set with NETSTACK_ENUMERATE_ABORT.
-#define NETSTACK_ENUMERATE_ABORT   0x0004
-
-// Enumerate up to n netstack_ifaces via copy. offsets must have space for at
-// least n elements, which will serve as offsets into objs. objs is a flat
-// array of size obytes. flags is a bitfield composed of the NETSTACK_ENUMERATE
-// constants. streamer ought point to a NULL netstack_enumerator to begin an
-// enumeration operation. Iff the enumeration completed (either successfully or
-// in an error), *streamer will be NULL on return. Otherwise, it will be set to
-// a non-NULL pointer, and netstack_iface_enumerate() should be called again
-// with this parameter to continue the enumeration.
-int netstack_iface_enumerate(const struct netstack* ns,
-                             uint32_t* offsets, int n,
-                             void* objs, size_t obytes, unsigned flags,
-                             struct netstack_enumerator** streamer);
-
 // Take a reference on some netstack iface for read-only use in the client.
 // There is no copy, but the object still needs to be freed by a call to
 // netstack_iface_abandon().
@@ -286,6 +263,50 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out);
 int netstack_print_addr(const struct netstack_addr* na, FILE* out);
 int netstack_print_route(const struct netstack_route* nr, FILE* out);
 int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out);
+
+// State for streaming enumerations (enumerations taking place over several
+// calls). It's exposed in this header so that callers can easily define one on
+// their stacks. Don't mess with it. Zero it out to start a new enumeration.
+typedef struct netstack_enumerator {
+  uint32_t nonce;
+  uint32_t slot;
+  struct netstack_iface* hnext;
+} netstack_enumerator;
+
+// Enumerate up to n netstack_ifaces via copy. offsets must have space for at
+// least n elements, which will serve as offsets into objs. objs is a flat
+// array of size obytes. flags is a bitfield composed of the NETSTACK_ENUMERATE
+// constants. streamer ought point to a zero-initialized netstack_enumerator to
+// begin an enumeration operation. If netstack_iface_enumerate() is called
+// again using this same streamer, the enumeration picks up where it left off.
+// A NULL streamer is interpreted as a request for atomic enumeration; if there
+// is not sufficient space to copy all objects, it is an error, and the
+// copying will be aborted as soon as possible. Unlike other errors, n and
+// obytes will be updated in this case to reflect the current necessary values.
+//
+// Returns -1 on error, due to invalid parameters, insufficient space for an
+// atomic enumeraion, or failure to resume an enumeration (this can happen if
+// too much has changed since the previous call--enumerations aren't really
+// suitable for highly dynamic environments). No parameters are modified in
+// this case (save the atomic case, as noted above). Otherwise, the number of objects
+// copied r is returned, r <= the original *n. n is set to the number of
+// objects remaining. obytes is set to the bytes required to copy the remaning
+// objects. streamer is updated, if appropriate. The first r values of offsets
+// give valid byte offsets into objs, and a (suitably-aligned) network_iface is
+// present at each such offset. Their associated buffers are also present in
+// objs. The pointers and bookkeeping within the netstack_ifaces have been
+// updated so that the resulting objects can be used with the standard
+// netstack_iface API. There is no need to call netstack_iface_abandon() on
+// these objects.
+//
+// An enumeration operation is thus successfully terminated iff a non-negative
+// number is returned, and *n and *obytes have both been set to 0. Note that
+// a 0 could be returned without completion if objs is too small to copy the
+// next object; in this case, neither *n nor *obytes would be 0.
+int netstack_iface_enumerate(const struct netstack* ns,
+                             uint32_t* offsets, int* n,
+                             void* objs, size_t* obytes,
+                             netstack_enumerator* streamer);
 
 #ifdef __cplusplus
 }

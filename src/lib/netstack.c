@@ -423,39 +423,21 @@ static inline void vfree_neigh(void* vn){ free_neigh(vn); }
 #endif
 
 static bool
-validate_enumeration_flags(const uint32_t* offsets, int n,
-                           void* objs, size_t obytes, unsigned flags,
-                           struct netstack_enumerator** streamer){
+validate_enumeration_flags(const uint32_t* offsets, int n, void* objs,
+                           size_t obytes, netstack_enumerator* streamer){
   if(n < 0){ // in no case may n be negative
     return false;
   }
-  if(!streamer){ // in no case may streamer be NULL
+  if((n && !offsets) || (!n && offsets)){
     return false;
   }
-  // ABORT cannot be set with any other flags. It is the only time
-  // offsets/objs/obytes/n can be invalid (though n must >= 0).
-  if(flags & NETSTACK_ENUMERATE_ABORT){
-    if(flags & ~NETSTACK_ENUMERATE_ABORT){
-      return false;
-    }
-    return true;
-  }
-  if(flags & NETSTACK_ENUMERATE_ATOMIC){ // ATOMIC should never have a streamer
-    if(*streamer){
-      return false;
-    }
-  }
-  // Unless ABORT was set, all buffer variables must be positive/non-NULL.
-  if(!offsets || !objs || !obytes || n <= 0){
+  if((obytes && !objs) || (!obytes && objs)){
     return false;
+  }
+  if(streamer->nonce || streamer->slot || streamer->hnext){
+    return false; // FIXME not used yet
   }
   return true;
-}
-
-static void
-destroy_streamer(struct netstack_enumerator** streamer){
-  free(*streamer);
-  *streamer = NULL;
 }
 
 // Size, in bytes, necessary to represent this ni (varies from ni to ni)
@@ -473,31 +455,34 @@ unsigned netstack_iface_count(const netstack* ns){
   return ret;
 }
 
-int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int n,
-                             void* objs, size_t obytes, unsigned flags,
-                             struct netstack_enumerator** streamer){
-  if(!validate_enumeration_flags(offsets, n, objs, obytes, flags, streamer)){
-    destroy_streamer(streamer);
+int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int* n,
+                             void* objs, size_t* obytes,
+                             netstack_enumerator* streamer){
+  if(!validate_enumeration_flags(offsets, *n, objs, *obytes, streamer)){
     return -1;
   }
   int copied = 0;
   uint64_t copied_bytes = 0;
   netstack* unsafe_ns = (netstack*)ns;
-  const size_t tsize = ns->iface_bytes;
+  // FIXME need to start at streamer, if non-zero
   pthread_mutex_lock(&unsafe_ns->hashlock);
-  if(tsize > obytes && (flags & NETSTACK_ENUMERATE_ATOMIC)){
+  const size_t tsize = ns->iface_bytes;
+  if(tsize > *obytes && !streamer){ // no streamer means atomic request
+    *obytes = tsize;
+    *n = ns->iface_count;
     pthread_mutex_unlock(&unsafe_ns->hashlock);
     return -1;
   }
   unsigned z;
+  const netstack_iface* ni;
   for(z = 0 ; z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) ; ++z){
-    const netstack_iface* ni = ns->iface_hash[z];
+    ni = ns->iface_hash[z];
     while(ni){
-      if(copied == n){
+      if(copied == *n){
         goto exhausted;
       }
       const size_t nisize = netstack_iface_size(ni);
-      if(obytes - copied_bytes < nisize){
+      if(*obytes - copied_bytes < nisize){
         goto exhausted;
       }
       offsets[copied] = copied_bytes; // where the new netstack_iface starts
@@ -517,7 +502,11 @@ int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int n,
     }
   }
 exhausted:
-  // FIXME are we done? if not, set up streaming
+  // if we're not yet done, just out of memory, we need to set up streaming.
+  // either way, 
+  if(z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) || ni){
+
+  }
   pthread_mutex_unlock(&unsafe_ns->hashlock);
   return copied;
 }
