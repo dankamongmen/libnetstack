@@ -80,7 +80,7 @@ You know the drill.
 
 A `struct netstack` must first be created using `netstack_create()`. This
 accepts a `netstack_opts` structure for configuration, including specification
-of callbacks. On failure, `NULL` is returned. A program may have an many
+of callbacks. `NULL` is returned on failure. A program may have an many
 netstacks as it likes, though I don't personally see much point in more than
 one in a process. This does not require any special privileges.
 
@@ -296,7 +296,8 @@ Enumeration currently always takes the form of a copy, never a share (shared
 enumerations will be added if a compelling reason for them is found). Two
 buffers must be provided for an enumeration request of up to `N` objects:
 * `offsets`, an array of `N` `uint32_t`s, and
-* `objs`, a character buffer of some size (`obytes`)
+* `objs`, a character buffer of some size (`obytes`).
+
 No more than `N` objects will be enumerated. If `objs` becomes exhausted, or
 `N` objects do not exist, fewer than `N` will be enumerated. The number of
 objects enumerated is returned, or -1 on error.
@@ -313,14 +314,14 @@ typedef struct netstack_enumerator {
 
 // Enumerate up to n netstack_ifaces via copy. offsets must have space for at
 // least n elements, which will serve as offsets into objs. objs is a flat
-// array of size obytes. flags is a bitfield composed of the NETSTACK_ENUMERATE
-// constants. streamer ought point to a zero-initialized netstack_enumerator to
-// begin an enumeration operation. If netstack_iface_enumerate() is called
-// again using this same streamer, the enumeration picks up where it left off.
-// A NULL streamer is interpreted as a request for atomic enumeration; if there
-// is not sufficient space to copy all objects, it is an error, and the
-// copying will be aborted as soon as possible. Unlike other errors, n and
-// obytes will be updated in this case to reflect the current necessary values.
+// array of size obytes. streamer ought point to a zero-initialized
+// netstack_enumerator to begin an enumeration operation. If
+// netstack_iface_enumerate() is called again using this same streamer, the
+// enumeration picks up where it left off. A NULL streamer is interpreted as a
+// request for atomic enumeration; if there is not sufficient space to copy all
+// objects, it is an error, and the copying will be aborted as soon as
+// possible. Unlike other errors, n and obytes will be updated in this case to
+// reflect the current necessary values.
 //
 // Returns -1 on error, due to invalid parameters, insufficient space for an
 // atomic enumeraion, or failure to resume an enumeration (this can happen if

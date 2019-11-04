@@ -275,14 +275,14 @@ typedef struct netstack_enumerator {
 
 // Enumerate up to n netstack_ifaces via copy. offsets must have space for at
 // least n elements, which will serve as offsets into objs. objs is a flat
-// array of size obytes. flags is a bitfield composed of the NETSTACK_ENUMERATE
-// constants. streamer ought point to a zero-initialized netstack_enumerator to
-// begin an enumeration operation. If netstack_iface_enumerate() is called
-// again using this same streamer, the enumeration picks up where it left off.
-// A NULL streamer is interpreted as a request for atomic enumeration; if there
-// is not sufficient space to copy all objects, it is an error, and the
-// copying will be aborted as soon as possible. Unlike other errors, n and
-// obytes will be updated in this case to reflect the current necessary values.
+// array of size obytes. streamer ought point to a zero-initialized
+// netstack_enumerator to begin an enumeration operation. If
+// netstack_iface_enumerate() is called again using this same streamer, the
+// enumeration picks up where it left off. A NULL streamer is interpreted as a
+// request for atomic enumeration; if there is not sufficient space to copy all
+// objects, it is an error, and the copying will be aborted as soon as
+// possible. Unlike other errors, n and obytes will be updated in this case to
+// reflect the current necessary values.
 //
 // Returns -1 on error, due to invalid parameters, insufficient space for an
 // atomic enumeraion, or failure to resume an enumeration (this can happen if
