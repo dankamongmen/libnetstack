@@ -57,11 +57,42 @@ index_into_rta(const struct rtattr* rtabuf, size_t offset){
   return (const struct rtattr*)(((const char*)rtabuf) + offset);
 }
 
+// Functions for inspecting netstack_ifaces
 const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int attridx);
 char* netstack_iface_name(const struct netstack_iface* ni, char* name);
 int netstack_iface_type(const struct netstack_iface* ni);
 int netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
+unsigned netstack_iface_flags(const struct netstack_iface* ni);
+
+static inline bool netstack_iface_up(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_UP;
+}
+
+// Has a valid broadcast address been configured?
+static inline bool netstack_iface_broadcast(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_BROADCAST;
+}
+
+// Is this a loopback device?
+static inline bool netstack_iface_loopback(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_LOOPBACK;
+}
+
+// Is this a point-to-point link?
+static inline bool netstack_iface_pointtopoint(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_POINTOPOINT;
+}
+
+// Does this link lack ARP?
+static inline bool netstack_iface_noarp(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_NOARP;
+}
+
+// Is the interface in promiscuious mode?
+static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_PROMISC;
+}
 
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
@@ -91,15 +122,18 @@ netstack_iface_mtu(const struct netstack_iface* ni){
   return ret;
 }
 
+// Functions for inspecting netstack_neighs
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
 int netstack_neigh_index(const struct netstack_neigh* nn);
 int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
 
+// Functions for inspecting netstack_addrs
 const struct rtattr* netstack_addr_attr(const struct netstack_addr* na, int attridx);
 int netstack_addr_family(const struct netstack_addr* na);
 int netstack_addr_index(const struct netstack_addr* na);
 int netstack_addr_prefixlen(const struct netstack_addr* na);
 
+// Functions for inspecting netstack_routes
 const struct rtattr* netstack_route_attr(const struct netstack_route* nr, int attridx);
 // Routing tables are indexed 0-255
 unsigned netstack_route_family(const struct netstack_route* nr);
