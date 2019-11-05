@@ -12,27 +12,6 @@ const char* family_to_str(unsigned family){
   }
 }
 
-static char*
-netstack_l2addrstr(int l2type, size_t len, const void* addr){
-  (void)l2type; // FIXME need for quirks
-  // Each byte becomes two ASCII characters + separator or nul
-  size_t slen = ((len) == 0 ? 1 : (len == 1) ? 2 : (len) * 3);
-  char* ret = malloc(slen);
-  if(ret == NULL){
-    return NULL;
-  }
-  if(len){
-    unsigned idx;
-    for(idx = 0 ; idx < len ; ++idx){
-      snprintf(ret + idx * 3, slen - idx * 3, "%02x:",
-               ((const unsigned char *)addr)[idx]);
-    }
-  }else{
-    ret[0] = '\0';
-  }
-  return ret;
-}
-
 int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
   int ret = 0;
   const struct rtattr* llrta = netstack_iface_attr(ni, IFLA_ADDRESS);
@@ -104,22 +83,18 @@ int netstack_print_route(const struct netstack_route* nr, FILE* out){
 int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out){
   char nastr[INET6_ADDRSTRLEN];
   unsigned family;
-  if(!netstack_neigh_l3addr(nn, nastr, sizeof(nastr), &family)){
+  if(!netstack_neigh_l3addrstr(nn, nastr, sizeof(nastr), &family)){
     return -1;
   }
   int ret = 0;
-  const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
-  if(l2rta){
-    char* llstr = netstack_l2addrstr(0, RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
-    if(!llstr){
-      return -1;
-    }
+  char* llstr = netstack_neigh_l2addrstr(nn);
+  if(llstr == NULL){
+    ret = fprintf(out, "%3d [%s] %s\n", netstack_neigh_index(nn),
+                  family_to_str(family), nastr);
+  }else{
     ret = fprintf(out, "%3d [%s] %s %s\n", netstack_neigh_index(nn),
                   family_to_str(family), nastr, llstr);
     free(llstr);
-  }else{
-    ret = fprintf(out, "%3d [%s] %s\n", netstack_neigh_index(nn),
-                  family_to_str(family), nastr);
   }
   if(ret < 0){
     return -1;

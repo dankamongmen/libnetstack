@@ -165,14 +165,14 @@ l3addrstr(int l3fam, const struct rtattr* rta, char* str, size_t slen){
   return str;
 }
 
-// Returns true if there is an NDA_DST layer 3 address associated with this
+// Returns true iff there is an NDA_DST layer 3 address associated with this
 // entry, *and* it can be transformed into a presentable string, *and* buf is
 // large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
 // family will hold the result of netstack_neigh_family() (assuming that an
 // NDA_DST rtattr was indeed present).
-static inline bool netstack_neigh_l3addr(const struct netstack_neigh* nn,
-                                         char* buf, size_t buflen,
-                                         unsigned* family){
+static inline bool netstack_neigh_l3addrstr(const struct netstack_neigh* nn,
+                                            char* buf, size_t buflen,
+                                            unsigned* family){
   const struct rtattr* nnrta = netstack_neigh_attr(nn, NDA_DST);
   if(nnrta == NULL){
     return false;
@@ -182,6 +182,41 @@ static inline bool netstack_neigh_l3addr(const struct netstack_neigh* nn,
     return false;
   }
   return true;
+}
+
+// Returns true iff there is an NDA_LLADDR layer 2 address associated with this
+// entry, *and* buf is large enough to hold it. buflen ought generally be at
+// least ETH_ALEN bytes.
+static inline bool netstack_neigh_l2addr(const struct netstack_neigh* nn,
+                                         void* buf, size_t buflen){
+  const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
+  if(l2rta == NULL){
+    return false;
+  }
+  if(buflen < RTA_PAYLOAD(l2rta)){
+    return false;
+  }
+  memcpy(buf, RTA_DATA(l2rta), RTA_PAYLOAD(l2rta));
+  return true;
+}
+
+// Provided a link-layer type, an address of that type, and the correct length
+// of that address, return a NUL-terminated, heap-allocated presentation-format
+// version of that link-layer address.
+char* netstack_l2addrstr(int l2type, size_t len, const void* addr);
+
+// Returns non-NULL iff there is an NDA_LLADDR layer 2 address associated with
+// this entry, *and* it can be transformed into a presentable string, *and*
+// memory is successfully allocated to hold the result. The result must in that
+// case be free()d by the caller.
+static inline char* netstack_neigh_l2addrstr(const struct netstack_neigh* nn){
+  const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
+  if(l2rta == NULL){
+    return NULL;
+  }
+  char* llstr = netstack_l2addrstr(netstack_neigh_type(nn),
+                                   RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
+  return llstr;
 }
 
 // Returns true if an NDA_CACHEINFO rtattr is present, in which case cinfo will

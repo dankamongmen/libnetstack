@@ -1115,3 +1115,23 @@ unsigned netstack_route_proto(const netstack_route* nr){
 unsigned netstack_route_dst_len(const netstack_route* nr){
   return nr->rt.rtm_dst_len;
 }
+
+char* netstack_l2addrstr(int l2type, size_t len, const void* addr){
+  (void)l2type; // FIXME need for quirks
+  // Each byte becomes two ASCII characters + separator or nul
+  size_t slen = ((len) == 0 ? 1 : (len == 1) ? 2 : (len) * 3);
+  char* ret = (char*)malloc(slen);
+  if(ret == NULL){
+    return NULL;
+  }
+  if(len){
+    unsigned idx;
+    for(idx = 0 ; idx < len ; ++idx){
+      snprintf(ret + idx * 3, slen - idx * 3, "%02x:",
+               ((const unsigned char *)addr)[idx]);
+    }
+  }else{
+    ret[0] = '\0';
+  }
+  return ret;
+}
