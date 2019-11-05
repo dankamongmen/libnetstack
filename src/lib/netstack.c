@@ -86,6 +86,7 @@ typedef struct netstack {
   pthread_cond_t txcond;
   pthread_mutex_t txlock;
   atomic_bool clear_to_send;
+  atomic_long nl_errors; // netlink error callback count
   // Guards iface_hash and the hnext pointer of all netstack_ifaces. Does not
   // guard netstack_ifaces' reference counts *aside from* the case when we've
   // just looked the object up, and are about to share it. We must make that
@@ -714,9 +715,11 @@ msg_handler(struct nl_msg* msg, void* vns){
 
 static int
 err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
-  const netstack* ns = vns;
-  fprintf(stderr, "Netlink error %p %p %p\n", nla, nlerr, ns);
-  return NL_OK; // FIXME
+  netstack* ns = vns;
+  fprintf(stderr, "Netlink error (fam %d) %d (%s)\n", nla->nl_family,
+          -nlerr->error, strerror(-nlerr->error));
+  ++ns->nl_errors;
+  return NL_OK;
 }
 
 static bool
@@ -774,6 +777,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   }
   ns->dequeueidx = 0;
   ns->clear_to_send = true;
+  ns->nl_errors = 0;
   ns->name_trie = NULL;
   ns->iface_count = 0;
   ns->iface_bytes = 0;
