@@ -53,27 +53,6 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
   return 0;
 }
 
-static char*
-l3addrstr(int l3fam, const struct rtattr* rta, char* str, size_t slen){
-  size_t alen; // 4 for IPv4, 16 for IPv6
-  if(l3fam == AF_INET){
-    alen = 4;
-  }else if(l3fam == AF_INET6){
-    alen = 16;
-  }else{
-    return NULL;
-  }
-  if(RTA_PAYLOAD(rta) != alen){
-    return NULL;
-  }
-  char naddrv[16]; // hold a full raw IPv6 adress
-  memcpy(naddrv, RTA_DATA(rta), alen);
-  if(!inet_ntop(l3fam, naddrv, str, slen)){
-    return NULL;
-  }
-  return str;
-}
-
 int netstack_print_addr(const struct netstack_addr* na, FILE* out){
   const struct rtattr* narta = netstack_addr_attr(na, IFA_ADDRESS);
   if(narta == NULL){
@@ -123,13 +102,9 @@ int netstack_print_route(const struct netstack_route* nr, FILE* out){
 }
 
 int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out){
-  const struct rtattr* nnrta = netstack_neigh_attr(nn, NDA_DST);
-  if(nnrta == NULL){
-    return -1;
-  }
-  unsigned family = netstack_neigh_family(nn);
   char nastr[INET6_ADDRSTRLEN];
-  if(!l3addrstr(family, nnrta, nastr, sizeof(nastr))){
+  unsigned family;
+  if(!netstack_neigh_l3addr(nn, nastr, sizeof(nastr), &family)){
     return -1;
   }
   int ret = 0;

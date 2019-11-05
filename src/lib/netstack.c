@@ -1072,6 +1072,18 @@ int netstack_neigh_family(const netstack_neigh* nn){
   return nn->nd.ndm_family;
 }
 
+unsigned netstack_neigh_flags(const netstack_neigh* nn){
+  return nn->nd.ndm_flags;
+}
+
+unsigned netstack_neigh_type(const netstack_neigh* nn){
+  return nn->nd.ndm_type;
+}
+
+unsigned netstack_neigh_state(const netstack_neigh* nn){
+  return nn->nd.ndm_state;
+}
+
 int netstack_addr_prefixlen(const netstack_addr* na){
   return na->ifa.ifa_prefixlen;
 }

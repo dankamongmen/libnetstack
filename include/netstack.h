@@ -5,6 +5,7 @@
 #include <net/if.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <arpa/inet.h>
 #include <linux/rtnetlink.h>
 
 #ifdef __cplusplus
@@ -126,6 +127,74 @@ netstack_iface_mtu(const struct netstack_iface* ni){
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
 int netstack_neigh_index(const struct netstack_neigh* nn);
 int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
+unsigned netstack_neigh_flags(const struct netstack_neigh* nn);
+
+static inline bool
+netstack_neigh_proxyarp(const struct netstack_neigh* nn){
+  return netstack_neigh_flags(nn) & NTF_PROXY;
+}
+
+static inline bool
+netstack_neigh_ipv6router(const struct netstack_neigh* nn){
+  return netstack_neigh_flags(nn) & NTF_ROUTER;
+}
+
+unsigned netstack_neigh_type(const struct netstack_neigh* nn);
+// A bitmask of NUD_{INCOMPLETE, REACHABLE, STALE, DELAY, PROBE, FAILED,
+//                   NOARP, PERMANENT}
+unsigned netstack_neigh_state(const struct netstack_neigh* nn);
+
+static inline char*
+l3addrstr(int l3fam, const struct rtattr* rta, char* str, size_t slen){
+  size_t alen; // 4 for IPv4, 16 for IPv6
+  if(l3fam == AF_INET){
+    alen = 4;
+  }else if(l3fam == AF_INET6){
+    alen = 16;
+  }else{
+    return NULL;
+  }
+  if(RTA_PAYLOAD(rta) != alen){
+    return NULL;
+  }
+  char naddrv[16]; // hold a full raw IPv6 adress
+  memcpy(naddrv, RTA_DATA(rta), alen);
+  if(!inet_ntop(l3fam, naddrv, str, slen)){
+    return NULL;
+  }
+  return str;
+}
+
+// Returns true if there is an NDA_DST layer 3 address associated with this
+// entry, *and* it can be transformed into a presentable string, *and* buf is
+// large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
+// family will hold the result of netstack_neigh_family() (assuming that an
+// NDA_DST rtattr was indeed present).
+static inline bool netstack_neigh_l3addr(const struct netstack_neigh* nn,
+                                         char* buf, size_t buflen,
+                                         unsigned* family){
+  const struct rtattr* nnrta = netstack_neigh_attr(nn, NDA_DST);
+  if(nnrta == NULL){
+    return false;
+  }
+  *family = netstack_neigh_family(nn);
+  if(!l3addrstr(*family, nnrta, buf, buflen)){
+    return false;
+  }
+  return true;
+}
+
+// Returns true if an NDA_CACHEINFO rtattr is present, in which case cinfo will
+// be filled in with the cache statistics for this entry.
+static inline bool netstack_neigh_cachestats(const struct netstack_neigh* nn,
+                                             struct nda_cacheinfo* cinfo){
+  const struct rtattr* rta = netstack_neigh_attr(nn, NDA_CACHEINFO);
+  if(rta == NULL){
+    return false;
+  }
+  memcpy(cinfo, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  return true;
+}
 
 // Functions for inspecting netstack_addrs
 const struct rtattr* netstack_addr_attr(const struct netstack_addr* na, int attridx);
@@ -356,18 +425,21 @@ vnetstack_print_iface(const struct netstack_iface* ni, netstack_event_e etype, v
 
 static inline void
 vnetstack_print_addr(const struct netstack_addr* na, netstack_event_e etype, void* vf){
+  fputc('A', vf);
   fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
   netstack_print_addr(na, vf);
 }
 
 static inline void
 vnetstack_print_route(const struct netstack_route* nr, netstack_event_e etype, void* vf){
+  fputc('R', vf);
   fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
   netstack_print_route(nr, vf);
 }
 
 static inline void
 vnetstack_print_neigh(const struct netstack_neigh* nn, netstack_event_e etype, void* vf){
+  fputc('N', vf);
   fputc(etype == NETSTACK_DEL ? '*' : ' ', vf);
   netstack_print_neigh(nn, vf);
 }
