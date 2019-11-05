@@ -125,9 +125,9 @@ resulting in a slew of events. This behavior can be changed with the
 
 Four object types are currently supported:
 
-* _ifaces_, corresponding to network devices both physical and virtual. There
-  is a one-to-one correspondence to elements in sysfs's `/class/net` node, and
-  also to the outputs of `ip link list`.
+* _[ifaces](#interfaces)_, corresponding to network devices both physical and
+  virtual. There is a one-to-one correspondence to elements in sysfs's
+  `/class/net` node, and also to the outputs of `ip link list`.
 
 The remaining objects are all associated with a single _iface_, but
 multiple _ifaces_ might each lay claim to overlapping objects. For instance, it
@@ -135,17 +135,17 @@ is possible (though usually pathological) to have the same _address_ on two
 different interfaces. This will result in two _address_ objects, each reachable
 through a different _iface_.
 
-* _addresses_, corresponding to local layer 3 addresses. An _address_ might
-  have a corresponding _broadcast address_.
-* _neighbors_, corresponding to l3 addresses thought to be reachable via direct
-  transmission. A _neighbor_ might have a corresponding _link address_.
-  In IPv4, these objects are largely a function of ARP. In IPv6, they primarily
-  result from NDP.
-* _routes_, corresponding to a destination l3 network. _routes_ specify an
-  associated _source address_. This _source address_ will typically correspond
-  to a known local _address_, but this cannot be assumed (to construct an
-  example from the command line, add an IP to an interface, add a route
-  specifying that source IP, and remove the address).
+* _[addresses](#addresses)_, corresponding to local layer 3 addresses. An
+  _address_ might have a corresponding _broadcast address_.
+* _[neighbors](#neighbors)_, corresponding to l3 addresses thought to be
+  reachable via direct transmission. A _neighbor_ might have a corresponding
+  _link address_. In IPv4, these objects are largely a function of ARP. In
+  IPv6, they primarily result from NDP.
+* _[routes](#routes)_, corresponding to a destination l3 network. _routes_
+  specify an associated _source address_. This _source address_ will typically
+  correspond to a known local _address_, but this cannot be assumed (to
+  construct an example from the command line, add an IP to an interface, add a
+  route specifying that source IP, and remove the address).
 
 In general, objects correspond to `rtnetlink(7)` message type families.
 Multicast support is planned.
