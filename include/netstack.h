@@ -95,32 +95,52 @@ static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
   return netstack_iface_flags(ni) & IFF_PROMISC;
 }
 
+// Bitwise copy of an RTA's payload into the provided user buf, assuming it is
+// sufficiently large. Returns true on success, and sets *len to the number
+// of bytes actually copied. Returns false if there is not enough room.
+static inline bool
+netstack_rtattrcpy(const struct rtattr* rta, void* buf, size_t* len){
+  if(rta == NULL || *len < RTA_PAYLOAD(rta)){
+    return false;
+  }
+  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  *len = RTA_PAYLOAD(rta);
+  return true;
+}
+
+// same deal as netstack_rtattrcpy(), but only performs the copy (and returns
+// true) if the sizes are exactly equal.
+static inline bool
+netstack_rtattrcpy_exact(const struct rtattr* rta, void* buf, size_t len){
+  if(rta == NULL || len != RTA_PAYLOAD(rta)){
+    return false;
+  }
+  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  return true;
+}
+
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
 // stored to this variable. otherwise, NULL will be returned.
 static inline void*
-netstack_iface_lladdr(const struct netstack_iface* ni, void* buf, size_t* len){
+netstack_iface_l2addr(const struct netstack_iface* ni, void* buf, size_t* len){
   const struct rtattr* rta = netstack_iface_attr(ni, IFLA_ADDRESS);
-  if(rta == NULL || *len < RTA_PAYLOAD(rta)){
-    return NULL;
-  }
-  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
-  return buf;
+  return netstack_rtattrcpy(rta, buf, len) ? buf : NULL;
+}
+
+// same deal as netstack_iface_l2addr(), but for the broadcast link-layer
+// address (if one exists).
+static inline void*
+netstack_iface_l2broadcast(const struct netstack_iface* ni, void* buf, size_t* len){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_BROADCAST);
+  return netstack_rtattrcpy(rta, buf, len) ? buf : NULL;
 }
 
 static inline uint32_t
 netstack_iface_mtu(const struct netstack_iface* ni){
-  const struct rtattr* attr = netstack_iface_attr(ni, IFLA_MTU);
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_MTU);
   uint32_t ret;
-  if(attr){
-    if(RTA_PAYLOAD(attr) != sizeof(ret)){
-      return 0;
-    }
-    memcpy(&ret, RTA_DATA(attr), RTA_PAYLOAD(attr));
-  }else{
-    ret = 0;
-  }
-  return ret;
+  return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
 }
 
 // Functions for inspecting netstack_neighs
