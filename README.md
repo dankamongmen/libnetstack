@@ -89,7 +89,7 @@ of callbacks. `NULL` is returned on failure. A program may have an many
 netstacks as it likes, though I don't personally see much point in more than
 one in a process. This does not require any special privileges.
 
-```
+```c
 struct netstack* netstack_create(const netstack_opts* opts);
 int netstack_destroy(struct netstack* ns);
 ```
@@ -157,7 +157,7 @@ Usually, the caller will want to at least configure some callbacks using the
 may be configured for each different kind of object. If the callback is `NULL`,
 the curry must also be `NULL`.
 
-```
+```c
 typedef enum {
   NETSTACK_MOD, // a non-destructive event about an object
   NETSTACK_DEL, // an object that is going away
@@ -232,7 +232,7 @@ situation to share the same key, something that never happens in the real world
 (or in the `netstack`'s cache). Failing to down the reference counter is
 effectively a memory leak.
 
-```
+```c
 // Take a reference on some netstack iface for read-only use in the client.
 // There is no copy, but the object still needs to be freed by a call to
 // netstack_iface_abandon().
@@ -244,7 +244,7 @@ The second mechanism, a deep copy, is only rarely useful. It leaves no residue
 outside the caller, and is never shared when created. This could be important
 for certain control flows and memory architectures.
 
-```
+```c
 // Copy out a netstack iface for arbitrary use in the client. This is a
 // heavyweight copy, and must be freed using netstack_iface_destroy(). You
 // would usually be better served by netstack_iface_share_*().
@@ -256,7 +256,7 @@ Shares and copies can occur from within a callback. If you want to use the
 object that was provided in the callback, this can be done without a lookup
 or taking any additional locks:
 
-```
+```c
 // Copy/share a netstack_iface to which we already have a handle, for
 // instance directly from the callback context. This is faster than the
 // alternatives, as it needn't perform a lookup.
@@ -269,7 +269,7 @@ Whether deep-copied or shared, the object can and should be abandoned via
 destroyed, with the implication that both shared and copied `netstack_iface`s
 remains valid after a call to `netstack_destroy()`.
 
-```
+```c
 // Release a netstack_iface acquired from the netstack through either a copy or
 // a share operation. Note that while the signature claims constness, ns will
 // actually presumably be mutated (via alias). It is thus imperative that the
@@ -290,7 +290,7 @@ The number of objects currently cached can be queried, though this is no
 guarantee that the number won't have changed by the time a subsequent
 enumeration is requested:
 
-```
+```c
 // Count of interfaces in the active store, and bytes used to represent them in
 // total. If iface_notrack is set, these will always return 0.
 unsigned netstack_iface_count(const struct netstack* ns);
@@ -307,7 +307,7 @@ No more than `N` objects will be enumerated. If `objs` becomes exhausted, or
 `N` objects do not exist, fewer than `N` will be enumerated. The number of
 objects enumerated is returned, or -1 on error.
 
-```
+```c
 // State for streaming enumerations (enumerations taking place over several
 // calls). It's exposed in this header so that callers can easily define one on
 // their stacks. Don't mess with it. Zero it out to start a new enumeration.
@@ -379,7 +379,7 @@ configured by the administrator or proxy ARP servers, but more typically they
 follow a natural periodic discovery state machine. Many link types do not have
 a concept of neighbors.
 
-```
+```c
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
 int netstack_neigh_index(const struct netstack_neigh* nn);
 int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
