@@ -26,12 +26,17 @@ while supporting fast lookups in the presence of millions of routes.
   * [Requirements](#requirements)
   * [Building](#building)
 * [Use](#use)
-  * [Initial enumeration events](#initial-enumeration-events)
-  * [Object types](#object-types)
-  * [Options](#options)
-  * [Accessing cached objects](#accessing-cached-objects)
-  * [Enumerating cached objects](#enumerating-cached-objects)
-  * [Querying objects](#querying-objects)
+* [Initial enumeration events](#initial-enumeration-events)
+* [Object types](#object-types)
+* [Options](#options)
+* [Accessing cached objects](#accessing-cached-objects)
+* [Enumerating cached objects](#enumerating-cached-objects)
+* [Querying objects](#querying-objects)
+  * [Interfaces](#interfaces)
+  * [Addresses](#addresses)
+  * [Routes](#routes)
+  * [Neighbors](#neighbors)
+* [Examples](#examples)
 
 ## Why not just use [libnl-route](https://www.infradead.org/~tgr/libnl/doc/api/group__rtnl.html)?
 
@@ -101,7 +106,7 @@ Ordering between different objects is not necessarily preserved, but events
 for the same object ("same" meaning "same lookup key", see below) are
 serialized.
 
-### Initial enumeration events
+## Initial enumeration events
 
 By default, upon creation of a `netstack` all objects will be enumerated,
 resulting in a slew of events. This behavior can be changed with the
@@ -116,7 +121,7 @@ resulting in a slew of events. This behavior can be changed with the
   might not show up for a short time.
 * `NETSTACK_INITIAL_EVENTS_NONE`: Don't perform the initial enumeration.
 
-### Object types
+## Object types
 
 Four object types are currently supported:
 
@@ -145,7 +150,7 @@ through a different _iface_.
 In general, objects correspond to `rtnetlink(7)` message type families.
 Multicast support is planned.
 
-### Options
+## Options
 
 Usually, the caller will want to at least configure some callbacks using the
 `netstack_opts` structure passed to `netstack_create()`. A callback and a curry
@@ -194,7 +199,7 @@ typedef struct netstack_opts {
 } netstack_opts;
 ```
 
-### Accessing cached objects
+## Accessing cached objects
 
 Since events can arrive at any time, invalidating the object cache, it is
 necessary that the caller either:
@@ -272,7 +277,7 @@ remains valid after a call to `netstack_destroy()`.
 void netstack_iface_abandon(const struct netstack_iface* ni);
 ```
 
-### Enumerating cached objects
+## Enumerating cached objects
 
 It is possible to get all the cached objects of a type via enumeration. This
 requires providing a (possibly large) buffer into which data will be copied.
@@ -359,10 +364,104 @@ For a positive return value _r_, the _r_ values returned in `offsets` index
 into `objs`. Each one is a (suitably-aligned) `struct netstack_iface`. These
 `netstack_iface`s do *not* need to be fed to `netstack_iface_abandon()`.
 
-### Querying objects
+## Querying objects
 
-FIXME
+### Interfaces
 
-### Examples
+### Addresses
+
+### Routes
+
+### Neigbors
+
+Neighbors are described by the opaque `netstack_neigh` object. Neighbors can be
+configured by the administrator or proxy ARP servers, but more typically they
+follow a natural periodic discovery state machine. Many link types do not have
+a concept of neighbors.
+
+```
+const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
+int netstack_neigh_index(const struct netstack_neigh* nn);
+int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
+unsigned netstack_neigh_flags(const struct netstack_neigh* nn);
+
+static inline bool
+netstack_neigh_proxyarp(const struct netstack_neigh* nn){
+  return netstack_neigh_flags(nn) & NTF_PROXY;
+}
+
+static inline bool
+netstack_neigh_ipv6router(const struct netstack_neigh* nn){
+  return netstack_neigh_flags(nn) & NTF_ROUTER;
+}
+
+unsigned netstack_neigh_type(const struct netstack_neigh* nn);
+// A bitmask of NUD_{INCOMPLETE, REACHABLE, STALE, DELAY, PROBE, FAILED,
+//                   NOARP, PERMANENT}
+unsigned netstack_neigh_state(const struct netstack_neigh* nn);
+
+// Returns true iff there is an NDA_DST layer 3 address associated with this
+// entry, *and* it can be transformed into a presentable string, *and* buf is
+// large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
+// family will hold the result of netstack_neigh_family() (assuming that an
+// NDA_DST rtattr was indeed present).
+static inline bool netstack_neigh_l3addrstr(const struct netstack_neigh* nn,
+                                            char* buf, size_t buflen,
+                                            unsigned* family){
+  const struct rtattr* nnrta = netstack_neigh_attr(nn, NDA_DST);
+  if(nnrta == NULL){
+    return false;
+  }
+  *family = netstack_neigh_family(nn);
+  if(!l3addrstr(*family, nnrta, buf, buflen)){
+    return false;
+  }
+  return true;
+}
+
+// Returns true iff there is an NDA_LLADDR layer 2 address associated with this
+// entry, *and* buf is large enough to hold it. buflen ought generally be at
+// least ETH_ALEN bytes.
+static inline bool netstack_neigh_l2addr(const struct netstack_neigh* nn,
+                                         void* buf, size_t buflen){
+  const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
+  if(l2rta == NULL){
+    return false;
+  }
+  if(buflen < RTA_PAYLOAD(l2rta)){
+    return false;
+  }
+  memcpy(buf, RTA_DATA(l2rta), RTA_PAYLOAD(l2rta));
+  return true;
+}
+
+// Returns non-NULL iff there is an NDA_LLADDR layer 2 address associated with
+// this entry, *and* it can be transformed into a presentable string, *and*
+// memory is successfully allocated to hold the result. The result must in that
+// case be free()d by the caller.
+static inline char* netstack_neigh_l2addrstr(const struct netstack_neigh* nn){
+  const struct rtattr* l2rta = netstack_neigh_attr(nn, NDA_LLADDR);
+  if(l2rta == NULL){
+    return NULL;
+  }
+  char* llstr = netstack_l2addrstr(netstack_neigh_type(nn),
+                                   RTA_PAYLOAD(l2rta), RTA_DATA(l2rta));
+  return llstr;
+}
+
+// Returns true if an NDA_CACHEINFO rtattr is present, in which case cinfo will
+// be filled in with the cache statistics for this entry.
+static inline bool netstack_neigh_cachestats(const struct netstack_neigh* nn,
+                                             struct nda_cacheinfo* cinfo){
+  const struct rtattr* rta = netstack_neigh_attr(nn, NDA_CACHEINFO);
+  if(rta == NULL){
+    return false;
+  }
+  memcpy(cinfo, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  return true;
+}
+```
+
+## Examples
 
 
