@@ -1101,6 +1101,14 @@ int netstack_addr_family(const netstack_addr* na){
   return na->ifa.ifa_family;
 }
 
+char* netstack_addr_label(const struct netstack_addr* na){
+  const struct rtattr* rta = netstack_addr_attr(na, IFA_LABEL);
+  if(rta == NULL){
+    return NULL;
+  }
+  return strndup(RTA_DATA(rta), RTA_PAYLOAD(rta));
+}
+
 unsigned netstack_route_family(const netstack_route* nr){
   return nr->rt.rtm_family;
 }

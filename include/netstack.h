@@ -164,7 +164,7 @@ netstack_iface_link(const struct netstack_iface* ni){
   return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
 }
 
-// Returns the queuing discipline NULL if none was reported. The return is
+// Returns the queuing discipline, or NULL if none was reported. The return is
 // heap-allocated, and must be free()d by the caller.
 char* netstack_iface_qdisc(const struct netstack_iface* ni);
 
@@ -334,6 +334,18 @@ const struct rtattr* netstack_addr_attr(const struct netstack_addr* na, int attr
 int netstack_addr_family(const struct netstack_addr* na);
 int netstack_addr_index(const struct netstack_addr* na);
 int netstack_addr_prefixlen(const struct netstack_addr* na);
+
+// Returns the address label, or NULL if none was reported. The return is
+// heap-allocated, and must be free()d by the caller.
+char* netstack_addr_label(const struct netstack_addr* na);
+
+// Returns address cacheinfo if they were reported, filling in the cinfo object
+// and returning 0. Returns -1 if there was no such info.
+static inline bool
+netstack_addr_cacheinfo(const struct netstack_addr* na, struct ifa_cacheinfo* cinfo){
+  const struct rtattr* rta = netstack_addr_attr(na, IFA_CACHEINFO);
+  return netstack_rtattrcpy_exact(rta, cinfo, sizeof(*cinfo));
+}
 
 // Functions for inspecting netstack_routes
 const struct rtattr* netstack_route_attr(const struct netstack_route* nr, int attridx);
