@@ -96,8 +96,8 @@ const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int at
 // or the name was greater than IFNAMSIZ-1 bytes (should never happen).
 char* netstack_iface_name(const struct netstack_iface* ni, char* name);
 
-int netstack_iface_type(const struct netstack_iface* ni);
-int netstack_iface_family(const struct netstack_iface* ni);
+unsigned netstack_iface_type(const struct netstack_iface* ni);
+unsigned netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
 unsigned netstack_iface_flags(const struct netstack_iface* ni);
 
@@ -155,13 +155,30 @@ netstack_iface_mtu(const struct netstack_iface* ni){
   return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
 }
 
+// Returns the link type (as opposed to the device type, as returned by
+// netstack_iface_type
+static inline int
+netstack_iface_link(const struct netstack_iface* ni){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_LINK);
+  int ret;
+  return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
+}
+
 // Returns the queuing discipline NULL if none was reported. The return is
 // heap-allocated, and must be free()d by the caller.
 char* netstack_iface_qdisc(const struct netstack_iface* ni);
 
+// Returns interface stats if they were reported, filling in the stats object
+// and returning 0. Returns -1 if there were no stats.
+static inline bool
+netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats* stats){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_STATS);
+  return netstack_rtattrcpy_exact(rta, stats, sizeof(*stats));
+}
+
 // Functions for inspecting netstack_neighs
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
-int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
+unsigned netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
 int netstack_neigh_index(const struct netstack_neigh* nn);
 // A bitmask of NUD_{INCOMPLETE, REACHABLE, STALE, DELAY, PROBE, FAILED,
 //                   NOARP, PERMANENT}

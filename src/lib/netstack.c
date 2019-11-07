@@ -1057,19 +1057,19 @@ char* netstack_iface_name(const netstack_iface* ni, char* name){
   return strcpy(name, ni->name);
 }
 
-int netstack_iface_type(const netstack_iface* ni){
-  return ni->ifi.ifi_type;
+unsigned netstack_iface_family(const netstack_iface* ni){
+  return ni->ifi.ifi_family;
 }
 
-int netstack_iface_family(const netstack_iface* ni){
-  return ni->ifi.ifi_family;
+unsigned netstack_iface_type(const netstack_iface* ni){
+  return ni->ifi.ifi_type;
 }
 
 int netstack_iface_index(const netstack_iface* ni){
   return ni->ifi.ifi_index;
 }
 
-int netstack_neigh_family(const netstack_neigh* nn){
+unsigned netstack_neigh_family(const netstack_neigh* nn){
   return nn->nd.ndm_family;
 }
 
