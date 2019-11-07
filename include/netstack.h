@@ -3,8 +3,10 @@
 
 #include <stdio.h>
 #include <net/if.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <linux/if.h>
 #include <arpa/inet.h>
 #include <linux/rtnetlink.h>
 
@@ -37,6 +39,11 @@ struct netstack_addr;
 struct netstack_neigh;
 struct netstack_route;
 
+// Objects arrive from netlink as a class-specific structure followed by a flat
+// set of struct rtattr* TLVs. These functions deal with struct rtattrs and
+// blocks thereof, and are primarily used by libnetstack itself.
+
+// Walk a rlen-byte block of rtattrs, looking for the specified type.
 static inline const struct rtattr*
 netstack_extract_rta_attr(const struct rtattr* rtabuf, size_t rlen, int rtype){
   while(RTA_OK(rtabuf, rlen)){
@@ -58,9 +65,37 @@ index_into_rta(const struct rtattr* rtabuf, size_t offset){
   return (const struct rtattr*)(((const char*)rtabuf) + offset);
 }
 
+// Bitwise copy of an RTA's payload into the provided user buf, assuming it is
+// sufficiently large. Returns true on success, and sets *len to the number
+// of bytes actually copied. Returns false if there is not enough room.
+static inline bool
+netstack_rtattrcpy(const struct rtattr* rta, void* buf, size_t* len){
+  if(rta == NULL || *len < RTA_PAYLOAD(rta)){
+    return false;
+  }
+  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  *len = RTA_PAYLOAD(rta);
+  return true;
+}
+
+// Same deal as netstack_rtattrcpy(), but only performs the copy (and returns
+// true) if the sizes are exactly equal.
+static inline bool
+netstack_rtattrcpy_exact(const struct rtattr* rta, void* buf, size_t len){
+  if(rta == NULL || len != RTA_PAYLOAD(rta)){
+    return false;
+  }
+  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
+  return true;
+}
+
 // Functions for inspecting netstack_ifaces
 const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int attridx);
+
+// name must be at least IFNAMSIZ bytes. returns NULL if no name was reported,
+// or the name was greater than IFNAMSIZ-1 bytes (should never happen).
 char* netstack_iface_name(const struct netstack_iface* ni, char* name);
+
 int netstack_iface_type(const struct netstack_iface* ni);
 int netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
@@ -95,30 +130,6 @@ static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
   return netstack_iface_flags(ni) & IFF_PROMISC;
 }
 
-// Bitwise copy of an RTA's payload into the provided user buf, assuming it is
-// sufficiently large. Returns true on success, and sets *len to the number
-// of bytes actually copied. Returns false if there is not enough room.
-static inline bool
-netstack_rtattrcpy(const struct rtattr* rta, void* buf, size_t* len){
-  if(rta == NULL || *len < RTA_PAYLOAD(rta)){
-    return false;
-  }
-  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
-  *len = RTA_PAYLOAD(rta);
-  return true;
-}
-
-// same deal as netstack_rtattrcpy(), but only performs the copy (and returns
-// true) if the sizes are exactly equal.
-static inline bool
-netstack_rtattrcpy_exact(const struct rtattr* rta, void* buf, size_t len){
-  if(rta == NULL || len != RTA_PAYLOAD(rta)){
-    return false;
-  }
-  memcpy(buf, RTA_DATA(rta), RTA_PAYLOAD(rta));
-  return true;
-}
-
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
 // stored to this variable. otherwise, NULL will be returned.
@@ -136,6 +147,7 @@ netstack_iface_l2broadcast(const struct netstack_iface* ni, void* buf, size_t* l
   return netstack_rtattrcpy(rta, buf, len) ? buf : NULL;
 }
 
+// Returns the MTU as reported by netlink, or 0 if none was reported.
 static inline uint32_t
 netstack_iface_mtu(const struct netstack_iface* ni){
   const struct rtattr* rta = netstack_iface_attr(ni, IFLA_MTU);
@@ -143,11 +155,61 @@ netstack_iface_mtu(const struct netstack_iface* ni){
   return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
 }
 
+// Returns the queuing discipline NULL if none was reported. The return is
+// heap-allocated, and must be free()d by the caller.
+char* netstack_iface_qdisc(const struct netstack_iface* ni);
+
 // Functions for inspecting netstack_neighs
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
-int netstack_neigh_index(const struct netstack_neigh* nn);
 int netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
+int netstack_neigh_index(const struct netstack_neigh* nn);
+// A bitmask of NUD_{INCOMPLETE, REACHABLE, STALE, DELAY, PROBE, FAILED,
+//                   NOARP, PERMANENT}
+unsigned netstack_neigh_state(const struct netstack_neigh* nn);
 unsigned netstack_neigh_flags(const struct netstack_neigh* nn);
+unsigned netstack_neigh_type(const struct netstack_neigh* nn);
+
+// Is this confirmed as reachable?
+static inline bool
+netstack_neigh_reachable(const struct netstack_neigh* nn){
+  return netstack_neigh_state(nn) & NUD_REACHABLE;
+}
+
+// Is this entry stale?
+static inline bool
+netstack_neigh_stale(const struct netstack_neigh* nn){
+  return netstack_neigh_state(nn) & NUD_STALE;
+}
+
+// Is this entry waiting for a timer?
+static inline bool
+netstack_neigh_delay(const struct netstack_neigh* nn){
+  return netstack_neigh_state(nn) & NUD_DELAY;
+}
+
+// Is the entry being reprobed?
+static inline bool
+netstack_neigh_probe(const struct netstack_neigh* nn){
+  return netstack_neigh_state(nn) & NUD_PROBE;
+}
+
+// Is this an invalidated cache entry?
+static inline bool
+netstack_neigh_failed(const struct netstack_neigh* nn){
+  return netstack_neigh_state(nn) & NUD_FAILED;
+}
+
+// Does this device operate without a destination host cache?
+static inline bool
+netstack_neigh_noarp(const struct netstack_neigh* nn){
+  return netstack_neigh_state(nn) & NUD_NOARP;
+}
+
+// Is this a permanent (admin-configured) neighbor cache entry?
+static inline bool
+netstack_neigh_permanent(const struct netstack_neigh* nn){
+  return netstack_neigh_state(nn) & NUD_PERMANENT;
+}
 
 static inline bool
 netstack_neigh_proxyarp(const struct netstack_neigh* nn){
@@ -159,17 +221,21 @@ netstack_neigh_ipv6router(const struct netstack_neigh* nn){
   return netstack_neigh_flags(nn) & NTF_ROUTER;
 }
 
-unsigned netstack_neigh_type(const struct netstack_neigh* nn);
-// A bitmask of NUD_{INCOMPLETE, REACHABLE, STALE, DELAY, PROBE, FAILED,
-//                   NOARP, PERMANENT}
-unsigned netstack_neigh_state(const struct netstack_neigh* nn);
+static inline char*
+netstack_l3addrstr(int fam, const void* addr, char* str, size_t slen){
+  if(!inet_ntop(fam, addr, str, slen)){
+    return NULL;
+  }
+  return str;
+}
 
 static inline char*
-l3addrstr(int l3fam, const struct rtattr* rta, char* str, size_t slen){
+netstack_rtattr_l3addrstr(int fam, const struct rtattr* rta,
+                          char* str, size_t slen){
   size_t alen; // 4 for IPv4, 16 for IPv6
-  if(l3fam == AF_INET){
+  if(fam == AF_INET){
     alen = 4;
-  }else if(l3fam == AF_INET6){
+  }else if(fam == AF_INET6){
     alen = 16;
   }else{
     return NULL;
@@ -177,12 +243,7 @@ l3addrstr(int l3fam, const struct rtattr* rta, char* str, size_t slen){
   if(RTA_PAYLOAD(rta) != alen){
     return NULL;
   }
-  char naddrv[16]; // hold a full raw IPv6 adress
-  memcpy(naddrv, RTA_DATA(rta), alen);
-  if(!inet_ntop(l3fam, naddrv, str, slen)){
-    return NULL;
-  }
-  return str;
+  return netstack_l3addrstr(fam, RTA_DATA(rta), str, slen);
 }
 
 // Returns true iff there is an NDA_DST layer 3 address associated with this
@@ -198,7 +259,7 @@ static inline bool netstack_neigh_l3addrstr(const struct netstack_neigh* nn,
     return false;
   }
   *family = netstack_neigh_family(nn);
-  if(!l3addrstr(*family, nnrta, buf, buflen)){
+  if(!netstack_rtattr_l3addrstr(*family, nnrta, buf, buflen)){
     return false;
   }
   return true;

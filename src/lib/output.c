@@ -39,7 +39,7 @@ int netstack_print_addr(const struct netstack_addr* na, FILE* out){
   }
   char nastr[INET6_ADDRSTRLEN];
   int family = netstack_addr_family(na);
-  if(!l3addrstr(family, narta, nastr, sizeof(nastr))){
+  if(!netstack_rtattr_l3addrstr(family, narta, nastr, sizeof(nastr))){
     return -1;
   }
   int ret = 0;
@@ -65,7 +65,7 @@ int netstack_print_route(const struct netstack_route* nr, FILE* out){
                   netstack_route_iif(nr), netstack_route_oif(nr));
   }else{
     char nastr[INET6_ADDRSTRLEN];
-    if(!l3addrstr(family, nrrta, nastr, sizeof(nastr))){
+    if(!netstack_l3addrstr(family, nrrta, nastr, sizeof(nastr))){
       return -1;
     }
     ret = fprintf(out, "[%s] %s/%u %s %s metric %d prio %d in %d out %d\n",

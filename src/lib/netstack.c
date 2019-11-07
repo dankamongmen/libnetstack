@@ -993,6 +993,14 @@ uint64_t netstack_iface_bytes(const netstack* ns){
   return ret;
 }
 
+char* netstack_iface_qdisc(const struct netstack_iface* ni){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_QDISC);
+  if(rta == NULL){
+    return NULL;
+  }
+  return strndup(RTA_DATA(rta), RTA_PAYLOAD(rta));
+}
+
 const struct rtattr* netstack_iface_attr(const netstack_iface* ni, int attridx){
   if(attridx < 0){
     return NULL;
@@ -1045,9 +1053,6 @@ const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int at
   return netstack_extract_rta_attr(nn->rtabuf, nn->rtabuflen, attridx);
 }
 
-// name must be at least IFNAMSIZ bytes, or better yet sizeof(ni->name). this
-// has been validated as safe to copy into char[IFNAMSIZ] (i.e. you'll
-// definitely get a NUL terminator), unlike netstack_iface_attr(IFLA_NAME).
 char* netstack_iface_name(const netstack_iface* ni, char* name){
   return strcpy(name, ni->name);
 }
@@ -1064,12 +1069,12 @@ int netstack_iface_index(const netstack_iface* ni){
   return ni->ifi.ifi_index;
 }
 
-int netstack_neigh_index(const netstack_neigh* nn){
-  return nn->nd.ndm_ifindex;
-}
-
 int netstack_neigh_family(const netstack_neigh* nn){
   return nn->nd.ndm_family;
+}
+
+int netstack_neigh_index(const netstack_neigh* nn){
+  return nn->nd.ndm_ifindex;
 }
 
 unsigned netstack_neigh_flags(const netstack_neigh* nn){

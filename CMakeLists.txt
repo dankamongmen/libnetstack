@@ -27,9 +27,11 @@ target_link_libraries(netstack
   INTERFACE
 	  Threads::Threads
 )
-target_compile_options(netstack PRIVATE
-  ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
-  -Wall -Wextra -W -Wshadow
+target_compile_options(netstack
+  PRIVATE
+    ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
+    -Wall -Wextra -W -Wshadow
+    -D_POSIX_C_SOURCE=200809L # for strndup()
 )
 
 add_library(netstack-static STATIC ${LIBSRCS})
