@@ -2,7 +2,7 @@
 #define LIBNETSTACK_NETSTACK
 
 #include <stdio.h>
-#include <net/if.h>
+//#include <net/if.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -100,8 +100,8 @@ const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int at
 // name must be at least IFNAMSIZ bytes. returns NULL if no name was reported,
 // or the name was greater than IFNAMSIZ-1 bytes (should never happen).
 char* netstack_iface_name(const struct netstack_iface* ni, char* name);
-
 unsigned netstack_iface_type(const struct netstack_iface* ni);
+char* netstack_iface_typestr(const struct netstack_iface* ni, char* buf, size_t blen);
 unsigned netstack_iface_family(const struct netstack_iface* ni);
 int netstack_iface_index(const struct netstack_iface* ni);
 unsigned netstack_iface_flags(const struct netstack_iface* ni);

@@ -1065,6 +1065,10 @@ unsigned netstack_iface_type(const netstack_iface* ni){
   return ni->ifi.ifi_type;
 }
 
+char* netstack_iface_typestr(const netstack_iface* ni, char* buf, size_t blen){
+  return nl_llproto2str(netstack_iface_type(ni), buf, blen);
+}
+
 int netstack_iface_index(const netstack_iface* ni){
   return ni->ifi.ifi_index;
 }

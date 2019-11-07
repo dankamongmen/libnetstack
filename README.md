@@ -358,6 +358,22 @@ into `objs`. Each one is a (suitably-aligned) `struct netstack_iface`. These
 
 ### Interfaces
 
+Interfaces are described by the opaque `netstack_iface` object. Interfaces
+correspond to physical devices (there can sometimes be multiple interfaces per
+physical device, either by configuration or by default) and virtual devices.
+Interfaces can be up or down, might or might not have carrier, might have a
+broadcast domain or might be point-to-point, might have multiple link-layer
+addresses, might have a link-layer broadcast address, will have a queueing
+discipline, might be in promiscuous aka "sniffing" mode, and will have a name
+of fewer than `IFNAMSIZ` characters.
+
+There are almost always more than one interface on a modern machine, one of
+which is almost always a loopback device with addresses of 127.0.0.1/8 (IPv4)
+and ::1/128 (IPv6).
+
+There are a great many types of interface beyond loopback and Ethernet (802.11
+WiFi devices look like Ethernet at Layer 2).
+
 ```c
 // name must be at least IFNAMSIZ bytes. returns NULL if no name was reported,
 // or the name was greater than IFNAMSIZ-1 bytes (should never happen).
@@ -446,7 +462,222 @@ netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats* st
 
 ### Addresses
 
+Addresses are described by the opaque `netstack_addr` object. Addresses can be
+configured by any number of automatic and manual means, and there are often
+multiple valid L3 addresses on a single interface.
+
+```c
+const struct rtattr* netstack_addr_attr(const struct netstack_addr* na, int attridx);
+unsigned netstack_addr_family(const struct netstack_addr* na);
+unsigned netstack_addr_prefixlen(const struct netstack_addr* na);
+unsigned netstack_addr_flags(const struct netstack_addr* na);
+unsigned netstack_addr_scope(const struct netstack_addr* na);
+int netstack_addr_index(const struct netstack_addr* na);
+
+// Returns true iff there is an IFA_ADDRESS layer 3 address associated with this
+// entry, *and* it can be transformed into a presentable string, *and* buf is
+// large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
+// family will hold the result of netstack_addr_family() (assuming that an
+// IFA_ADDRESS rtattr was indeed present).
+static inline char*
+netstack_addr_addressstr(const struct netstack_addr* na, char* buf,
+                         size_t buflen, unsigned* family){
+  const struct rtattr* narta = netstack_addr_attr(na, IFA_ADDRESS);
+  if(narta == NULL){
+    return NULL;
+  }
+  *family = netstack_addr_family(na);
+  if(!netstack_rtattr_l3addrstr(*family, narta, buf, buflen)){
+    return NULL;
+  }
+  return buf;
+}
+
+// Returns true iff there is an IFA_LOCAL layer 3 address associated with this
+// entry, *and* it can be transformed into a presentable string, *and* buf is
+// large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
+// family will hold the result of netstack_addr_family() (assuming that an
+// IFA_LOCAL rtattr was indeed present).
+static inline char*
+netstack_addr_localstr(const struct netstack_addr* na, char* buf,
+                       size_t buflen, unsigned* family){
+  const struct rtattr* narta = netstack_addr_attr(na, IFA_LOCAL);
+  if(narta == NULL){
+    return NULL;
+  }
+  *family = netstack_addr_family(na);
+  if(!netstack_rtattr_l3addrstr(*family, narta, buf, buflen)){
+    return NULL;
+  }
+  return buf;
+}
+
+// Returns the address label, or NULL if none was reported. The return is
+// heap-allocated, and must be free()d by the caller.
+char* netstack_addr_label(const struct netstack_addr* na);
+
+// Returns address cacheinfo if they were reported, filling in the cinfo object
+// and returning 0. Returns -1 if there was no such info.
+static inline bool
+netstack_addr_cacheinfo(const struct netstack_addr* na, struct ifa_cacheinfo* cinfo){
+  const struct rtattr* rta = netstack_addr_attr(na, IFA_CACHEINFO);
+  return netstack_rtattrcpy_exact(rta, cinfo, sizeof(*cinfo));
+}
+```
+
 ### Routes
+
+Routes are described by the opaque `netstack_route` object. Routes can be
+configured by the administrator, a DHCP client, a routing server, IPv6
+advertisements, and other means.
+
+```c
+const struct rtattr* netstack_route_attr(const struct netstack_route* nr, int attridx);
+unsigned netstack_route_family(const struct netstack_route* nr);
+unsigned netstack_route_dst_len(const struct netstack_route* nr);
+unsigned netstack_route_src_len(const struct netstack_route* nr);
+unsigned netstack_route_tos(const struct netstack_route* nr);
+// Routing tables are indexed 0-255
+unsigned netstack_route_table(const struct netstack_route* nr);
+unsigned netstack_route_protocol(const struct netstack_route* nr);
+unsigned netstack_route_scope(const struct netstack_route* nr);
+unsigned netstack_route_type(const struct netstack_route* nr);
+unsigned netstack_route_flags(const struct netstack_route* nr);
+
+static inline bool netstack_route_notify(const struct netstack_route* nr){
+  return netstack_route_flags(nr) & RTM_F_NOTIFY;
+}
+
+// Was the route cloned from another route?
+static inline bool netstack_route_cloned(const struct netstack_route* nr){
+  return netstack_route_flags(nr) & RTM_F_CLONED;
+}
+
+static inline bool netstack_route_equalize(const struct netstack_route* nr){
+  return netstack_route_flags(nr) & RTM_F_EQUALIZE;
+}
+
+static inline bool
+netstack_route_str(const struct netstack_route* nr, int attr, char* buf,
+                   size_t buflen, unsigned* family){
+  const struct rtattr* nrrta = netstack_route_attr(nr, attr);
+  if(nrrta == NULL){
+    return false;
+  }
+  *family = netstack_route_family(nr);
+  if(!netstack_rtattr_l3addrstr(*family, nrrta, buf, buflen)){
+    return false;
+  }
+  return true;
+}
+
+static inline bool netstack_route_dststr(const struct netstack_route* nr,
+                                         char* buf, size_t buflen,
+                                         unsigned* family){
+  return netstack_route_str(nr, RTA_DST, buf, buflen, family);
+}
+
+static inline bool netstack_route_srcstr(const struct netstack_route* nr,
+                                         char* buf, size_t buflen,
+                                         unsigned* family){
+  return netstack_route_str(nr, RTA_SRC, buf, buflen, family);
+}
+
+static inline bool netstack_route_gatewaystr(const struct netstack_route* nr,
+                                             char* buf, size_t buflen,
+                                             unsigned* family){
+  return netstack_route_str(nr, RTA_GATEWAY, buf, buflen, family);
+}
+
+static inline int
+netstack_route_intattr(const struct netstack_route* nr, int attr){
+  const struct rtattr* rt = netstack_route_attr(nr, attr);
+  int ret = 0;
+  if(rt && RTA_PAYLOAD(rt) == sizeof(ret)){
+    memcpy(&ret, RTA_DATA(rt), RTA_PAYLOAD(rt));
+  }
+  return ret;
+}
+
+static inline int
+netstack_route_iif(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_IIF);
+}
+
+static inline int
+netstack_route_oif(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_OIF);
+}
+
+static inline int
+netstack_route_priority(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_PRIORITY);
+}
+
+static inline int
+netstack_route_metric(const struct netstack_route* nr){
+  return netstack_route_intattr(nr, RTA_METRICS);
+}
+
+static inline const char*
+netstack_route_typestr(unsigned rtype){
+  switch(rtype){
+    case RTN_UNSPEC: return "none";
+    case RTN_UNICAST: return "unicast";
+    case RTN_LOCAL: return "local";
+    case RTN_BROADCAST: return "broadcast";
+    case RTN_ANYCAST: return "anycast";
+    case RTN_MULTICAST: return "multicast";
+    case RTN_BLACKHOLE: return "blackhole";
+    case RTN_UNREACHABLE: return "unreachable";
+    case RTN_PROHIBIT: return "prohibit";
+    case RTN_THROW: return "throw";
+    case RTN_NAT: return "nat";
+    case RTN_XRESOLVE: return "xresolve";
+    default: return "?";
+  }
+}
+
+static inline const char*
+netstack_route_scopestr(unsigned scope){
+  switch(scope){
+    case RT_SCOPE_UNIVERSE: return "global"; // global route
+    case RT_SCOPE_SITE: return "site"; // interior route in the local AS
+    case RT_SCOPE_LINK: return "link"; // route on this link
+    case RT_SCOPE_HOST: return "host"; // route on the local host
+    case RT_SCOPE_NOWHERE: return "nowhere"; // destination doesn't exist
+    default: return "?";
+  }
+}
+
+static inline const char*
+netstack_route_protstr(unsigned proto){
+  switch(proto){
+    case RTPROT_UNSPEC: return "unknown";
+    case RTPROT_REDIRECT: return "icmp";
+    case RTPROT_KERNEL: return "kernel";
+    case RTPROT_BOOT: return "boot";
+    case RTPROT_STATIC: return "admin";
+    case RTPROT_GATED: return "gated";
+    case RTPROT_RA: return "rdisc/nd";
+    case RTPROT_MRT: return "meritmrt";
+    case RTPROT_ZEBRA: return "zebra";
+    case RTPROT_BIRD: return "bird";
+    case RTPROT_DNROUTED: return "decnet";
+    case RTPROT_XORP: return "xdrp";
+    case RTPROT_NTK: return "netsukuku";
+    case RTPROT_DHCP: return "dhcp";
+    case RTPROT_MROUTED: return "mcastd";
+    case RTPROT_BABEL: return "babeld";
+    case RTPROT_BGP: return "bgp";
+    case RTPROT_ISIS: return "isis";
+    case RTPROT_OSPF: return "ospf";
+    case RTPROT_RIP: return "rip";
+    case RTPROT_EIGRP: return "eigrp";
+    default: return "?";
+  }
+}
+```
 
 ### Neigbors
 
