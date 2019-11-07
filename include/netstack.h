@@ -355,6 +355,33 @@ unsigned netstack_route_table(const struct netstack_route* nr);
 unsigned netstack_route_type(const struct netstack_route* nr);
 unsigned netstack_route_proto(const struct netstack_route* nr);
 unsigned netstack_route_dst_len(const struct netstack_route* nr);
+unsigned netstack_route_src_len(const struct netstack_route* nr);
+
+static inline bool
+netstack_route_str(const struct netstack_route* nr, int attr, char* buf,
+                   size_t buflen, unsigned* family){
+  const struct rtattr* nrrta = netstack_route_attr(nr, attr);
+  if(nrrta == NULL){
+    return false;
+  }
+  *family = netstack_route_family(nr);
+  if(!netstack_rtattr_l3addrstr(*family, nrrta, buf, buflen)){
+    return false;
+  }
+  return true;
+}
+
+static inline bool netstack_route_dststr(const struct netstack_route* nr,
+                                         char* buf, size_t buflen,
+                                         unsigned* family){
+  return netstack_route_str(nr, RTA_DST, buf, buflen, family);
+}
+
+static inline bool netstack_route_srcstr(const struct netstack_route* nr,
+                                         char* buf, size_t buflen,
+                                         unsigned* family){
+  return netstack_route_str(nr, RTA_SRC, buf, buflen, family);
+}
 
 static inline int
 netstack_route_intattr(const struct netstack_route* nr, int attr){

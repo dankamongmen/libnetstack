@@ -253,6 +253,7 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(nr->rtabuf)) + rtaoff);
   memcpy(&nr->rt, rt, sizeof(*rt));
+fprintf(stderr, "RTA_TYPE: %u\n", rta->rta_type);
   if(rta->rta_type > RTA_NH_ID){
       fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
       nr->unknown_attrs = true;
@@ -1127,6 +1128,10 @@ unsigned netstack_route_proto(const netstack_route* nr){
 
 unsigned netstack_route_dst_len(const netstack_route* nr){
   return nr->rt.rtm_dst_len;
+}
+
+unsigned netstack_route_src_len(const netstack_route* nr){
+  return nr->rt.rtm_src_len;
 }
 
 char* netstack_l2addrstr(int l2type, size_t len, const void* addr){

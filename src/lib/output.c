@@ -52,28 +52,26 @@ int netstack_print_addr(const struct netstack_addr* na, FILE* out){
 }
 
 int netstack_print_route(const struct netstack_route* nr, FILE* out){
-  const struct rtattr* nrrta = netstack_route_attr(nr, RTA_DST);
+  unsigned family;
+  // an additional 4 for the slash, length, and space
+  char dststr[INET6_ADDRSTRLEN + 4] = "";
+  char srcstr[INET6_ADDRSTRLEN + 4] = "";
+  if(netstack_route_dststr(nr, dststr, sizeof(dststr), &family)){
+    snprintf(dststr + strlen(dststr), sizeof(dststr) - strlen(dststr), "/%u ",
+             netstack_route_dst_len(nr));
+  }
+  if(netstack_route_srcstr(nr, srcstr, sizeof(srcstr), &family)){
+    snprintf(srcstr + strlen(srcstr), sizeof(srcstr) - strlen(srcstr), "/%u ",
+             netstack_route_src_len(nr));
+  }
   int ret = 0;
   unsigned rtype = netstack_route_type(nr);
   unsigned proto = netstack_route_proto(nr);
-  unsigned family = netstack_route_family(nr);
-  if(nrrta == NULL){
-    ret = fprintf(out, "[%s] default %s %s metric %d prio %d in %d out %d\n",
-                  family_to_str(family),
-                  netstack_route_typestr(rtype), netstack_route_protstr(proto),
-                  netstack_route_metric(nr), netstack_route_priority(nr),
-                  netstack_route_iif(nr), netstack_route_oif(nr));
-  }else{
-    char nastr[INET6_ADDRSTRLEN];
-    if(!netstack_l3addrstr(family, nrrta, nastr, sizeof(nastr))){
-      return -1;
-    }
-    ret = fprintf(out, "[%s] %s/%u %s %s metric %d prio %d in %d out %d\n",
-                  family_to_str(family), nastr, netstack_route_dst_len(nr),
-                  netstack_route_typestr(rtype), netstack_route_protstr(proto),
-                  netstack_route_metric(nr), netstack_route_priority(nr),
-                  netstack_route_iif(nr), netstack_route_oif(nr));
-  }
+  ret = fprintf(out, "[%s] %s%s%s %s metric %d prio %d in %d out %d\n",
+                family_to_str(family), dststr, srcstr,
+                netstack_route_typestr(rtype), netstack_route_protstr(proto),
+                netstack_route_metric(nr), netstack_route_priority(nr),
+                netstack_route_iif(nr), netstack_route_oif(nr));
   if(ret < 0){
     return -1;
   }
