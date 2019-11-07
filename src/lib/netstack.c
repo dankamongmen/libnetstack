@@ -1089,16 +1089,24 @@ unsigned netstack_neigh_state(const netstack_neigh* nn){
   return nn->nd.ndm_state;
 }
 
-int netstack_addr_prefixlen(const netstack_addr* na){
+unsigned netstack_addr_family(const netstack_addr* na){
+  return na->ifa.ifa_family;
+}
+
+unsigned netstack_addr_prefixlen(const netstack_addr* na){
   return na->ifa.ifa_prefixlen;
+}
+
+unsigned netstack_addr_flags(const struct netstack_addr* na){
+  return na->ifa.ifa_flags;
+}
+
+unsigned netstack_addr_scope(const struct netstack_addr* na){
+  return na->ifa.ifa_scope;
 }
 
 int netstack_addr_index(const netstack_addr* na){
   return na->ifa.ifa_index;
-}
-
-int netstack_addr_family(const netstack_addr* na){
-  return na->ifa.ifa_family;
 }
 
 char* netstack_addr_label(const struct netstack_addr* na){
@@ -1113,18 +1121,6 @@ unsigned netstack_route_family(const netstack_route* nr){
   return nr->rt.rtm_family;
 }
 
-unsigned netstack_route_table(const netstack_route* nr){
-  return nr->rt.rtm_table;
-}
-
-unsigned netstack_route_type(const netstack_route* nr){
-  return nr->rt.rtm_type;
-}
-
-unsigned netstack_route_proto(const netstack_route* nr){
-  return nr->rt.rtm_protocol;
-}
-
 unsigned netstack_route_dst_len(const netstack_route* nr){
   return nr->rt.rtm_dst_len;
 }
@@ -1133,7 +1129,31 @@ unsigned netstack_route_src_len(const netstack_route* nr){
   return nr->rt.rtm_src_len;
 }
 
-char* netstack_l2addrstr(int l2type, size_t len, const void* addr){
+unsigned netstack_route_tos(const netstack_route* nr){
+  return nr->rt.rtm_tos;
+}
+
+unsigned netstack_route_table(const netstack_route* nr){
+  return nr->rt.rtm_table;
+}
+
+unsigned netstack_route_protocol(const netstack_route* nr){
+  return nr->rt.rtm_protocol;
+}
+
+unsigned netstack_route_scope(const struct netstack_route* nr){
+  return nr->rt.rtm_scope;
+}
+
+unsigned netstack_route_type(const netstack_route* nr){
+  return nr->rt.rtm_type;
+}
+
+unsigned netstack_route_flags(const netstack_route* nr){
+  return nr->rt.rtm_flags;
+}
+
+char* netstack_l2addrstr(unsigned l2type, size_t len, const void* addr){
   (void)l2type; // FIXME need for quirks
   // Each byte becomes two ASCII characters + separator or nul
   size_t slen = ((len) == 0 ? 1 : (len == 1) ? 2 : (len) * 3);

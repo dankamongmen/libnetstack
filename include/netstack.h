@@ -89,6 +89,11 @@ netstack_rtattrcpy_exact(const struct rtattr* rta, void* buf, size_t len){
   return true;
 }
 
+// Provided a link-layer type, an address of that type, and the correct length
+// of that address, return a NUL-terminated, heap-allocated presentation-format
+// version of that link-layer address.
+char* netstack_l2addrstr(unsigned l2type, size_t len, const void* addr);
+
 // Functions for inspecting netstack_ifaces
 const struct rtattr* netstack_iface_attr(const struct netstack_iface* ni, int attridx);
 
@@ -139,12 +144,35 @@ netstack_iface_l2addr(const struct netstack_iface* ni, void* buf, size_t* len){
   return netstack_rtattrcpy(rta, buf, len) ? buf : NULL;
 }
 
+// Returns true iff there is an IFLA_ADDRESS layer 2 address associated with
+// this entry, *and* it can be transformed into a presentable string.
+// family will hold the result of netstack_iface_family(), even on error.
+static inline char*
+netstack_iface_addressstr(const struct netstack_iface* ni, unsigned* type){
+  *type = netstack_iface_type(ni);
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_ADDRESS);
+  if(rta == NULL){
+    return NULL;
+  }
+  return netstack_l2addrstr(*type, RTA_PAYLOAD(rta), RTA_DATA(rta));
+}
+
 // same deal as netstack_iface_l2addr(), but for the broadcast link-layer
 // address (if one exists).
 static inline void*
 netstack_iface_l2broadcast(const struct netstack_iface* ni, void* buf, size_t* len){
   const struct rtattr* rta = netstack_iface_attr(ni, IFLA_BROADCAST);
   return netstack_rtattrcpy(rta, buf, len) ? buf : NULL;
+}
+
+static inline char*
+netstack_iface_broadcaststr(const struct netstack_iface* ni, unsigned* type){
+  *type = netstack_iface_type(ni);
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_BROADCAST);
+  if(rta == NULL){
+    return NULL;
+  }
+  return netstack_l2addrstr(*type, RTA_PAYLOAD(rta), RTA_DATA(rta));
 }
 
 // Returns the MTU as reported by netlink, or 0 if none was reported.
@@ -298,11 +326,6 @@ static inline bool netstack_neigh_l2addr(const struct netstack_neigh* nn,
   return true;
 }
 
-// Provided a link-layer type, an address of that type, and the correct length
-// of that address, return a NUL-terminated, heap-allocated presentation-format
-// version of that link-layer address.
-char* netstack_l2addrstr(int l2type, size_t len, const void* addr);
-
 // Returns non-NULL iff there is an NDA_LLADDR layer 2 address associated with
 // this entry, *and* it can be transformed into a presentable string, *and*
 // memory is successfully allocated to hold the result. The result must in that
@@ -331,9 +354,49 @@ static inline bool netstack_neigh_cachestats(const struct netstack_neigh* nn,
 
 // Functions for inspecting netstack_addrs
 const struct rtattr* netstack_addr_attr(const struct netstack_addr* na, int attridx);
-int netstack_addr_family(const struct netstack_addr* na);
+unsigned netstack_addr_family(const struct netstack_addr* na);
+unsigned netstack_addr_prefixlen(const struct netstack_addr* na);
+unsigned netstack_addr_flags(const struct netstack_addr* na);
+unsigned netstack_addr_scope(const struct netstack_addr* na);
 int netstack_addr_index(const struct netstack_addr* na);
-int netstack_addr_prefixlen(const struct netstack_addr* na);
+
+// Returns true iff there is an IFA_ADDRESS layer 3 address associated with this
+// entry, *and* it can be transformed into a presentable string, *and* buf is
+// large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
+// family will hold the result of netstack_addr_family() (assuming that an
+// IFA_ADDRESS rtattr was indeed present).
+static inline char*
+netstack_addr_addressstr(const struct netstack_addr* na, char* buf,
+                         size_t buflen, unsigned* family){
+  const struct rtattr* narta = netstack_addr_attr(na, IFA_ADDRESS);
+  if(narta == NULL){
+    return NULL;
+  }
+  *family = netstack_addr_family(na);
+  if(!netstack_rtattr_l3addrstr(*family, narta, buf, buflen)){
+    return NULL;
+  }
+  return buf;
+}
+
+// Returns true iff there is an IFA_LOCAL layer 3 address associated with this
+// entry, *and* it can be transformed into a presentable string, *and* buf is
+// large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
+// family will hold the result of netstack_addr_family() (assuming that an
+// IFA_LOCAL rtattr was indeed present).
+static inline char*
+netstack_addr_localstr(const struct netstack_addr* na, char* buf,
+                       size_t buflen, unsigned* family){
+  const struct rtattr* narta = netstack_addr_attr(na, IFA_LOCAL);
+  if(narta == NULL){
+    return NULL;
+  }
+  *family = netstack_addr_family(na);
+  if(!netstack_rtattr_l3addrstr(*family, narta, buf, buflen)){
+    return NULL;
+  }
+  return buf;
+}
 
 // Returns the address label, or NULL if none was reported. The return is
 // heap-allocated, and must be free()d by the caller.
@@ -349,13 +412,29 @@ netstack_addr_cacheinfo(const struct netstack_addr* na, struct ifa_cacheinfo* ci
 
 // Functions for inspecting netstack_routes
 const struct rtattr* netstack_route_attr(const struct netstack_route* nr, int attridx);
-// Routing tables are indexed 0-255
 unsigned netstack_route_family(const struct netstack_route* nr);
-unsigned netstack_route_table(const struct netstack_route* nr);
-unsigned netstack_route_type(const struct netstack_route* nr);
-unsigned netstack_route_proto(const struct netstack_route* nr);
 unsigned netstack_route_dst_len(const struct netstack_route* nr);
 unsigned netstack_route_src_len(const struct netstack_route* nr);
+unsigned netstack_route_tos(const struct netstack_route* nr);
+// Routing tables are indexed 0-255
+unsigned netstack_route_table(const struct netstack_route* nr);
+unsigned netstack_route_protocol(const struct netstack_route* nr);
+unsigned netstack_route_scope(const struct netstack_route* nr);
+unsigned netstack_route_type(const struct netstack_route* nr);
+unsigned netstack_route_flags(const struct netstack_route* nr);
+
+static inline bool netstack_route_notify(const struct netstack_route* nr){
+  return netstack_route_flags(nr) & RTM_F_NOTIFY;
+}
+
+// Was the route cloned from another route?
+static inline bool netstack_route_cloned(const struct netstack_route* nr){
+  return netstack_route_flags(nr) & RTM_F_CLONED;
+}
+
+static inline bool netstack_route_equalize(const struct netstack_route* nr){
+  return netstack_route_flags(nr) & RTM_F_EQUALIZE;
+}
 
 static inline bool
 netstack_route_str(const struct netstack_route* nr, int attr, char* buf,
@@ -434,7 +513,19 @@ netstack_route_typestr(unsigned rtype){
     case RTN_THROW: return "throw";
     case RTN_NAT: return "nat";
     case RTN_XRESOLVE: return "xresolve";
-    default: return "";
+    default: return "?";
+  }
+}
+
+static inline const char*
+netstack_route_scopestr(unsigned scope){
+  switch(scope){
+    case RT_SCOPE_UNIVERSE: return "global"; // global route
+    case RT_SCOPE_SITE: return "site"; // interior route in the local AS
+    case RT_SCOPE_LINK: return "link"; // route on this link
+    case RT_SCOPE_HOST: return "host"; // route on the local host
+    case RT_SCOPE_NOWHERE: return "nowhere"; // destination doesn't exist
+    default: return "?";
   }
 }
 

@@ -13,18 +13,13 @@ const char* family_to_str(unsigned family){
 }
 
 int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
-  int ret = 0;
-  const struct rtattr* llrta = netstack_iface_attr(ni, IFLA_ADDRESS);
-  char* llstr = NULL;
-  if(llrta){
-    llstr = netstack_l2addrstr(netstack_iface_family(ni), RTA_PAYLOAD(llrta),
-                               RTA_DATA(llrta));
-  }
+  unsigned l2type;
+  char* llstr = netstack_iface_addressstr(ni, &l2type);
   char name[IFNAMSIZ];
-  ret = fprintf(out, "%3d [%s] %u %s%smtu %u\n", netstack_iface_index(ni),
-                netstack_iface_name(ni, name), netstack_iface_type(ni),
-                llstr ? llstr : "", llstr ? " " : "",
-                netstack_iface_mtu(ni));
+  int ret = fprintf(out, "%3d [%s] %u %s%smtu %u\n", netstack_iface_index(ni),
+                    netstack_iface_name(ni, name), l2type,
+                    llstr ? llstr : "", llstr ? " " : "",
+                    netstack_iface_mtu(ni));
   free(llstr);
   if(ret < 0){
     return -1;
@@ -33,18 +28,15 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
 }
 
 int netstack_print_addr(const struct netstack_addr* na, FILE* out){
-  const struct rtattr* narta = netstack_addr_attr(na, IFA_ADDRESS);
-  if(narta == NULL){
-    return -1;
-  }
-  char nastr[INET6_ADDRSTRLEN];
-  int family = netstack_addr_family(na);
-  if(!netstack_rtattr_l3addrstr(family, narta, nastr, sizeof(nastr))){
+  unsigned family;
+  // an additional byte for a space
+  char addrstr[INET6_ADDRSTRLEN];
+  if(!netstack_addr_addressstr(na, addrstr, sizeof(addrstr), &family)){
     return -1;
   }
   int ret = 0;
   ret = fprintf(out, "%3d [%s] %s/%u\n", netstack_addr_index(na),
-                family_to_str(family), nastr, netstack_addr_prefixlen(na));
+                family_to_str(family), addrstr, netstack_addr_prefixlen(na));
   if(ret < 0){
     return -1;
   }
@@ -71,7 +63,7 @@ int netstack_print_route(const struct netstack_route* nr, FILE* out){
   }
   int ret = 0;
   unsigned rtype = netstack_route_type(nr);
-  unsigned proto = netstack_route_proto(nr);
+  unsigned proto = netstack_route_protocol(nr);
   ret = fprintf(out, "[%s] %s %s%s%s%s metric %d prio %d in %d out %d\n",
                 family_to_str(family), netstack_route_typestr(rtype),
                 gwstr, dststr, srcstr,
