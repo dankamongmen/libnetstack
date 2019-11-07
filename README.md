@@ -205,28 +205,18 @@ Since events can arrive at any time, invalidating the object cache, it is
 necessary that the caller either:
 
 * increment a reference counter, yielding a pointer to an immutable object
-   which must be referenced down,
+   which must be referenced down, or
 * deep-copy objects out upon access, yielding a mutable object which must be
-   destroyed, or
-* extract any elements (via copy) without gaining access to the greater object.
+   destroyed when no longer needed.
 
-All three mechanisms are supported. Each mechanism takes place while locking at
+Both mechanisms are supported. Each mechanism takes place while locking at
 least part of the `netstack` internals, possibly blocking other threads
 (including those of the `netstack` itself, potentially causing kernel events to
-be dropped). The first and third are generally the most useful ways to operate.
+be dropped). Once the object is obtained, see
+"[Querying objects](#querying-objects)" below for the API to access it.
 
-When only a small amount of information is needed, the third method is
-simplest and most effective. The call is provided a key (interface index or
-name). While locked, the corresponding object is found, and the appropriate
-data are copied out. The lock is released, and the copied data are returned.
-Note that it is impossible using this method to get an atomic view of
-multiple attributes, since the object might change (or be destroyed) between
-calls. For the API, see "[Querying objects](#querying-objects)" below.
-
-When the object will be needed for multiple operations, it's generally better
-to use the reference-counter approach. Compared to the extraction method, this
-allows atomic inspection of multiple attributes, and requires only one lookup
-instead of N. While the object is held, it cannot be destroyed by the `netstack`,
+It's generally recommended to use the reference-counter approach, aka "sharing".
+While the object is held, it cannot be destroyed by the `netstack`,
 but it might be replaced. It is thus possible for multiple objects in this
 situation to share the same key, something that never happens in the real world
 (or in the `netstack`'s cache). Failing to down the reference counter is
@@ -241,8 +231,8 @@ const struct netstack_iface* netstack_iface_share_byidx(struct netstack* ns, int
 ```
 
 The second mechanism, a deep copy, is only rarely useful. It leaves no residue
-outside the caller, and is never shared when created. This could be important
-for certain control flows and memory architectures.
+in the `netstack`, and can only explicitly be shared with other threads. This
+could be important for certain control flows and memory architectures.
 
 ```c
 // Copy out a netstack iface for arbitrary use in the client. This is a
@@ -367,6 +357,92 @@ into `objs`. Each one is a (suitably-aligned) `struct netstack_iface`. These
 ## Querying objects
 
 ### Interfaces
+
+```c
+// name must be at least IFNAMSIZ bytes. returns NULL if no name was reported,
+// or the name was greater than IFNAMSIZ-1 bytes (should never happen).
+char* netstack_iface_name(const struct netstack_iface* ni, char* name);
+
+unsigned netstack_iface_type(const struct netstack_iface* ni);
+unsigned netstack_iface_family(const struct netstack_iface* ni);
+int netstack_iface_index(const struct netstack_iface* ni);
+unsigned netstack_iface_flags(const struct netstack_iface* ni);
+
+static inline bool netstack_iface_up(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_UP;
+}
+
+// Has a valid broadcast address been configured?
+static inline bool netstack_iface_broadcast(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_BROADCAST;
+}
+
+// Is this a loopback device?
+static inline bool netstack_iface_loopback(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_LOOPBACK;
+}
+
+// Is this a point-to-point link?
+static inline bool netstack_iface_pointtopoint(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_POINTOPOINT;
+}
+
+// Does this link lack ARP?
+static inline bool netstack_iface_noarp(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_NOARP;
+}
+
+// Is the interface in promiscuious mode?
+static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
+  return netstack_iface_flags(ni) & IFF_PROMISC;
+}
+
+// pass in the maximum number of bytes available for copying the link-layer
+// address. if this is sufficient, the actual number of bytes copied will be
+// stored to this variable. otherwise, NULL will be returned.
+static inline void*
+netstack_iface_l2addr(const struct netstack_iface* ni, void* buf, size_t* len){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_ADDRESS);
+  return netstack_rtattrcpy(rta, buf, len) ? buf : NULL;
+}
+
+// same deal as netstack_iface_l2addr(), but for the broadcast link-layer
+// address (if one exists).
+static inline void*
+netstack_iface_l2broadcast(const struct netstack_iface* ni, void* buf, size_t* len){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_BROADCAST);
+  return netstack_rtattrcpy(rta, buf, len) ? buf : NULL;
+}
+
+// Returns the MTU as reported by netlink, or 0 if none was reported.
+static inline uint32_t
+netstack_iface_mtu(const struct netstack_iface* ni){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_MTU);
+  uint32_t ret;
+  return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
+}
+
+// Returns the link type (as opposed to the device type, as returned by
+// netstack_iface_type
+static inline int
+netstack_iface_link(const struct netstack_iface* ni){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_LINK);
+  int ret;
+  return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
+}
+
+// Returns the queuing discipline, or NULL if none was reported. The return is
+// heap-allocated, and must be free()d by the caller.
+char* netstack_iface_qdisc(const struct netstack_iface* ni);
+
+// Returns interface stats if they were reported, filling in the stats object
+// and returning 0. Returns -1 if there were no stats.
+static inline bool
+netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats* stats){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_STATS);
+  return netstack_rtattrcpy_exact(rta, stats, sizeof(*stats));
+}
+```
 
 ### Addresses
 
