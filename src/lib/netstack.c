@@ -98,6 +98,7 @@ typedef struct netstack {
   netstack_iface* iface_hash[IFACE_HASH_SLOTS];
   unsigned iface_count; // ifaces currently in the active cache
   uint64_t iface_bytes; // bytes occupied (not including metadata) in cache
+  uint64_t nonce; // incremented with every change to invalidate streamings
   name_node* name_trie; // all netstack_iface objects, indexed by name
   netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
@@ -465,8 +466,12 @@ int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int* n,
   int copied = 0;
   uint64_t copied_bytes = 0;
   netstack* unsafe_ns = (netstack*)ns;
-  unsigned sslot = streamer ? streamer->slot : 0; // FIXME hnext/nonce
+  unsigned sslot = streamer ? streamer->slot : 0; // FIXME hnext
   pthread_mutex_lock(&unsafe_ns->hashlock);
+  if(streamer && streamer->nonce && streamer->nonce != ns->nonce){
+    pthread_mutex_unlock(&unsafe_ns->hashlock);
+    return -1;
+  }
   const size_t tsize = ns->iface_bytes;
   if(tsize > *obytes && !streamer){ // no streamer means atomic request
     *obytes = tsize;
@@ -508,7 +513,7 @@ exhausted:
   if(z < sizeof(ns->iface_hash) / sizeof(*ns->iface_hash) || ni){
     *n -= copied;
     *obytes -= copied_bytes;
-    streamer->nonce = 0; // FIXME
+    streamer->nonce = ns->nonce;
     streamer->slot = z;
     if(ni){
       streamer->hnext = (uintptr_t)ni->hnext;
@@ -767,6 +772,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   }else{
     memset(&ns->opts, 0, sizeof(ns->opts));
   }
+  ns->nonce = 1;
   if(ns->opts.initial_events != NETSTACK_INITIAL_EVENTS_NONE){
     memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
     ns->txqueue[sizeof(dumpmsgs) / sizeof(*dumpmsgs)] = -1;
