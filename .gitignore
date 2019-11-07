@@ -1,0 +1,8 @@
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/libnetstack-dev.substvars
+debian/libnetstack-dev/
+debian/libnetstack0.substvars
+debian/libnetstack0/
+debian/tmp/
