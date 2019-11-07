@@ -53,6 +53,11 @@ int netstack_print_addr(const struct netstack_addr* na, FILE* out){
 
 int netstack_print_route(const struct netstack_route* nr, FILE* out){
   unsigned family;
+  // an additional byte for a space
+  char gwstr[INET6_ADDRSTRLEN + 1] = "";
+  if(netstack_route_gatewaystr(nr, gwstr, sizeof(gwstr), &family)){
+    strcat(gwstr, " ");
+  }
   // an additional 4 for the slash, length, and space
   char dststr[INET6_ADDRSTRLEN + 4] = "";
   char srcstr[INET6_ADDRSTRLEN + 4] = "";
@@ -67,9 +72,10 @@ int netstack_print_route(const struct netstack_route* nr, FILE* out){
   int ret = 0;
   unsigned rtype = netstack_route_type(nr);
   unsigned proto = netstack_route_proto(nr);
-  ret = fprintf(out, "[%s] %s%s%s %s metric %d prio %d in %d out %d\n",
-                family_to_str(family), dststr, srcstr,
-                netstack_route_typestr(rtype), netstack_route_protstr(proto),
+  ret = fprintf(out, "[%s] %s %s%s%s%s metric %d prio %d in %d out %d\n",
+                family_to_str(family), netstack_route_typestr(rtype),
+                gwstr, dststr, srcstr,
+                netstack_route_protstr(proto),
                 netstack_route_metric(nr), netstack_route_priority(nr),
                 netstack_route_iif(nr), netstack_route_oif(nr));
   if(ret < 0){

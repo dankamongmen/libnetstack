@@ -253,7 +253,6 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(nr->rtabuf)) + rtaoff);
   memcpy(&nr->rt, rt, sizeof(*rt));
-fprintf(stderr, "RTA_TYPE: %u\n", rta->rta_type);
   if(rta->rta_type > RTA_NH_ID){
       fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
       nr->unknown_attrs = true;

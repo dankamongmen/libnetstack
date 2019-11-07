@@ -383,6 +383,12 @@ static inline bool netstack_route_srcstr(const struct netstack_route* nr,
   return netstack_route_str(nr, RTA_SRC, buf, buflen, family);
 }
 
+static inline bool netstack_route_gatewaystr(const struct netstack_route* nr,
+                                             char* buf, size_t buflen,
+                                             unsigned* family){
+  return netstack_route_str(nr, RTA_GATEWAY, buf, buflen, family);
+}
+
 static inline int
 netstack_route_intattr(const struct netstack_route* nr, int attr){
   const struct rtattr* rt = netstack_route_attr(nr, attr);
