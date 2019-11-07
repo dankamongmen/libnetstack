@@ -498,6 +498,13 @@ netstack_route_metric(const struct netstack_route* nr){
   return netstack_route_intattr(nr, RTA_METRICS);
 }
 
+static inline bool
+netstack_route_cacheinfo(const struct netstack_route* nr,
+                         struct rta_cacheinfo* cinfo){
+  const struct rtattr* rta = netstack_route_attr(nr, RTA_CACHEINFO);
+  return netstack_rtattrcpy_exact(rta, cinfo, sizeof(*cinfo));
+}
+
 static inline const char*
 netstack_route_typestr(unsigned rtype){
   switch(rtype){

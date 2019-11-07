@@ -42,3 +42,22 @@ TEST(Inspect, AddressProperties) {
   ASSERT_NE(nullptr, ns);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
+
+static void
+RouteCB(const netstack_route* nr, netstack_event_e etype,
+        void* curry __attribute__ ((unused))) {
+  if(etype != NETSTACK_MOD){
+    return;
+  }
+  EXPECT_GT(256, netstack_route_metric(nr));
+}
+
+TEST(Inspect, RouteProperties) {
+  netstack_opts nopts;
+  memset(&nopts, 0, sizeof(nopts));
+  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.route_cb = RouteCB;
+  struct netstack* ns = netstack_create(&nopts);
+  ASSERT_NE(nullptr, ns);
+  ASSERT_EQ(0, netstack_destroy(ns));
+}
