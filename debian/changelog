@@ -1,3 +1,10 @@
+libnetstack (0.5.0-1) unstable; urgency=medium
+
+  * New upstream release: inspection API, decode netlink error
+     messages, enumeration requests with streaming
+
+ -- Nick Black <dankamongmen@gmail.com>  Thu, 07 Nov 2019 06:40:33 -0500
+
 libnetstack (0.4.0-1) unstable; urgency=medium
 
   * New upstream release: initial event policies (BLOCK/ASYNC/NONE),
