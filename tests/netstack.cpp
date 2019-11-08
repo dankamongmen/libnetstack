@@ -51,7 +51,7 @@ TEST(Netstack, CreateInitialEventsNone) {
   std::atomic<int> shouldnt_post{0};
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_NONE;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_NONE;
   nopts.iface_cb = ifacecb;
   nopts.iface_curry = &shouldnt_post;
   struct netstack* ns = netstack_create(&nopts);
@@ -65,7 +65,7 @@ TEST(Netstack, CreateInitialEventsBlock) {
   std::atomic<int> post{0};
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_cb = ifacecb;
   nopts.iface_curry = &post;
   struct netstack* ns = netstack_create(&nopts);
@@ -81,7 +81,7 @@ TEST(Netstack, CreateInitialEventsBlock) {
 TEST(Netstack, IfaceCacheStats) {
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
   unsigned count = netstack_iface_count(ns);
@@ -94,7 +94,7 @@ TEST(Netstack, IfaceCacheStats) {
 TEST(Netstack, IfaceCountNoCache) {
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_notrack = true;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);

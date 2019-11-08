@@ -65,7 +65,7 @@ TEST(NoTrack, IfaceFailsLookup) {
   cc.idx = -1;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_notrack = true;
   nopts.iface_cb = IntCopyCB;
   nopts.iface_curry = &cc;

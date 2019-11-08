@@ -4,7 +4,7 @@
 // But the max must still be non-negative
 TEST(Enumerate, NoNegativeMax) {
   netstack_opts nopts = {};
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
   netstack_enumerator nenum{};
@@ -19,7 +19,7 @@ TEST(Enumerate, NoNegativeMax) {
 
 TEST(Enumerate, GetCopies) {
   netstack_opts nopts = {};
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
   netstack_enumerator nenum{};
@@ -48,7 +48,7 @@ TEST(Enumerate, GetCopies) {
 
 TEST(Enumerate, OneByOne) {
   netstack_opts nopts = {};
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
   netstack_enumerator nenum{};

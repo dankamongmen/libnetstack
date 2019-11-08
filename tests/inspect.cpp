@@ -16,7 +16,7 @@ IfaceCB(const netstack_iface* ni, netstack_event_e etype,
 TEST(Inspect, IfaceProperties) {
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_cb = IfaceCB;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
@@ -36,7 +36,7 @@ AddrCB(const netstack_addr* na, netstack_event_e etype,
 TEST(Inspect, AddressProperties) {
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.addr_cb = AddrCB;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
@@ -55,7 +55,7 @@ RouteCB(const netstack_route* nr, netstack_event_e etype,
 TEST(Inspect, RouteProperties) {
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.route_cb = RouteCB;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);

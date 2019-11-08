@@ -30,9 +30,17 @@ int main(void){
   }
   int sig;
   printf("Waiting on signal...\n");
-  if(sigwait(&sigset, &sig)){
-    fprintf(stderr, "Couldn't wait on signals (%s)\n", strerror(errno));
-    return EXIT_FAILURE;
+  struct timespec ts = { .tv_sec = 5, .tv_nsec = 0, };
+  siginfo_t sinfo;
+  while((sig = sigtimedwait(&sigset, &sinfo, &ts)) < 0){
+    if(errno == EAGAIN){
+      netstack_stats stats;
+      netstack_sample_stats(ns, &stats);
+      netstack_print_stats(&stats, stdout);
+    }else if(errno == EINVAL){
+      fprintf(stderr, "Couldn't wait on signals (%s)\n", strerror(errno));
+      return EXIT_FAILURE;
+    }
   }
   printf("Got signal %d, cleaning up...\n", sig);
   if(netstack_destroy(ns)){

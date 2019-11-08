@@ -39,6 +39,23 @@ struct netstack_addr;
 struct netstack_neigh;
 struct netstack_route;
 
+typedef struct netstack_stats {
+  // Current counts of each object class
+  unsigned ifaces, addrs, routes, neighs;
+  // Events for each object class (dumps + creations + changes + deletions)
+  uint64_t iface_events, addr_events, route_events, neigh_events;
+  // The number of times a lookup + share or lookup + copy succeeded
+  uint64_t lookup_shares, lookup_copies;
+  // The number of times the user looked up a key and it didn't exist
+  uint64_t lookup_failures;
+  uint64_t netlink_errors; // number of nlmsgerrs received from netlink
+  uint64_t user_callbacks_total; // number of times we've called back
+} netstack_stats;
+
+// Acquire the current statistics, atomically.
+netstack_stats* netstack_sample_stats(const struct netstack* ns,
+                                      netstack_stats* stats);
+
 // Objects arrive from netlink as a class-specific structure followed by a flat
 // set of struct rtattr* TLVs. These functions deal with struct rtattrs and
 // blocks thereof, and are primarily used by libnetstack itself.
@@ -576,16 +593,6 @@ typedef void (*netstack_addr_cb)(const struct netstack_addr*, netstack_event_e, 
 typedef void (*netstack_route_cb)(const struct netstack_route*, netstack_event_e, void*);
 typedef void (*netstack_neigh_cb)(const struct netstack_neigh*, netstack_event_e, void*);
 
-// Policy for initial object dump. _ASYNC will cause events for existing
-// objects, but netstack_create() may return before they've been received.
-// _BLOCK blocks netstack_create() from returning until all initial enumeration
-// events have been received. _NONE inhibits initial enumeration.
-typedef enum {
-  NETSTACK_INITIAL_EVENTS_ASYNC,
-  NETSTACK_INITIAL_EVENTS_BLOCK,
-  NETSTACK_INITIAL_EVENTS_NONE,
-} netstack_initial_e;
-
 // The default for all members is false or the appropriate zero representation.
 // It is invalid to supply a non-NULL curry together with a NULL callback for
 // any type. It is invalid to supply no callbacks together with all notracks.
@@ -599,9 +606,17 @@ typedef struct netstack_opts {
   void* route_curry;
   netstack_neigh_cb neigh_cb;
   void* neigh_curry;
-  // If set, do not cache the corresponding type of object
+  // If set, do not cache the corresponding type of object.
   bool iface_notrack, addr_notrack, route_notrack, neigh_notrack;
-  netstack_initial_e initial_events; // policy for initial object enumeration
+  // Policy for initial object dump. _ASYNC will cause events for existing
+  // objects, but netstack_create() may return before they've been received.
+  // _BLOCK blocks netstack_create() from returning until all initial
+  // enumeration events have been received. _NONE inhibits initial enumeration.
+  enum {
+    NETSTACK_INITIAL_EVENTS_ASYNC,
+    NETSTACK_INITIAL_EVENTS_BLOCK,
+    NETSTACK_INITIAL_EVENTS_NONE,
+  } initial_events;
 } netstack_opts;
 
 // Opts may be NULL, in which case the defaults will be used.
@@ -638,10 +653,12 @@ struct netstack_iface* netstack_iface_copy(const struct netstack_iface* ni);
 void netstack_iface_abandon(const struct netstack_iface* ni);
 
 // Print human-readable object summaries to the specied FILE*. -1 on error.
+// This format is subject to arbitrary change.
 int netstack_print_iface(const struct netstack_iface* ni, FILE* out);
 int netstack_print_addr(const struct netstack_addr* na, FILE* out);
 int netstack_print_route(const struct netstack_route* nr, FILE* out);
 int netstack_print_neigh(const struct netstack_neigh* nn, FILE* out);
+int netstack_print_stats(const netstack_stats* stats, FILE* out);
 
 // State for streaming enumerations (enumerations taking place over several
 // calls). It's exposed in this header so that callers can easily define one on

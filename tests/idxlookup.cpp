@@ -29,7 +29,7 @@ TEST(IdxLookup, IfaceDeepCopy) {
   cc.idx = -1;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_cb = ExternalCB;
   nopts.iface_curry = &cc;
   struct netstack* ns = netstack_create(&nopts);
@@ -56,7 +56,7 @@ TEST(IdxLookup, IfaceShare) {
   cc.idx = -1;
   netstack_opts nopts;
   memset(&nopts, 0, sizeof(nopts));
-  nopts.initial_events = NETSTACK_INITIAL_EVENTS_BLOCK;
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
   nopts.iface_cb = ExternalCB;
   nopts.iface_curry = &cc;
   struct netstack* ns = netstack_create(&nopts);
