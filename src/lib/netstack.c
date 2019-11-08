@@ -89,6 +89,7 @@ typedef struct netstack {
   // Statistics
   atomic_uintmax_t netlink_errors;
   atomic_uintmax_t user_callbacks_total;
+  atomic_uintmax_t lookup_copies, lookup_shares, lookup_failures;
   // Guards iface_hash and the hnext pointer of all netstack_ifaces. Does not
   // guard netstack_ifaces' reference counts *aside from* the case when we've
   // just looked the object up, and are about to share it. We must make that
@@ -861,6 +862,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   }
   ns->netlink_errors = 0;
   ns->user_callbacks_total = 0;
+  ns->lookup_copies = ns->lookup_shares = ns->lookup_failures = 0;
   // Passes this netstack object to libnl. The nl_sock thus must be destroyed
   // before the netstack itself is.
   if(nl_socket_modify_cb(ns->nl, NL_CB_VALID, NL_CB_CUSTOM, msg_handler, ns)){
@@ -979,6 +981,11 @@ netstack_iface* netstack_iface_copy_byname(netstack* ns, const char* name){
     ret = NULL;
   }
   pthread_mutex_unlock(&ns->hashlock);
+  if(ret){
+    ++ns->lookup_copies;
+  }else{
+    ++ns->lookup_failures;
+  }
   return ret;
 }
 
@@ -989,6 +996,11 @@ const netstack_iface* netstack_iface_share_byname(netstack* ns, const char* name
     atomic_fetch_add(&ni->refcount, 1);
   }
   pthread_mutex_unlock(&ns->hashlock);
+  if(ni){
+    ++ns->lookup_shares;
+  }else{
+    ++ns->lookup_failures;
+  }
   return ni;
 }
 
@@ -1018,6 +1030,11 @@ netstack_iface* netstack_iface_copy_byidx(netstack* ns, int idx){
     ret = NULL;
   }
   pthread_mutex_unlock(&ns->hashlock);
+  if(ret){
+    ++ns->lookup_copies;
+  }else{
+    ++ns->lookup_failures;
+  }
   return ret;
 }
 
@@ -1033,6 +1050,11 @@ const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
     atomic_fetch_add(&ni->refcount, 1);
   }
   pthread_mutex_unlock(&ns->hashlock);
+  if(ni){
+    ++ns->lookup_shares;
+  }else{
+    ++ns->lookup_failures;
+  }
   return ni;
 }
 
