@@ -782,11 +782,14 @@ typedef struct netstack_stats {
   uint64_t iface_events, addr_events, route_events, neigh_events;
   // The number of times a lookup + share or lookup + copy succeeded
   uint64_t lookup_shares, lookup_copies;
+  // Number of shares which have been invalidated but not destroyed
+  uint64_t zombie_shares;
   // The number of times the user looked up a key and it didn't exist
   uint64_t lookup_failures;
   uint64_t netlink_errors; // number of nlmsgerrs received from netlink
   uint64_t user_callbacks_total; // number of times we've called back
 } netstack_stats;
+```
 
 // Acquire the current statistics, atomically.
 netstack_stats* netstack_sample_stats(const struct netstack* ns,

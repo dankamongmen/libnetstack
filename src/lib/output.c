@@ -106,12 +106,13 @@ int netstack_print_stats(const netstack_stats* stats, FILE* out){
   int ret = 0;
   ret = fprintf(out, "%u ifaces %u addrs %u routes %u neighs\n"
                 "%ju iface-evs %ju addr-evs %ju route-evs %ju neigh-evs\n"
-                "%ju lookup+shares %ju lookup+copies %ju lookup-failures\n"
+                "%ju lookup+shares %ju zombies %ju lookup+copies %ju lookup-failures\n"
                 "%ju netlink-errors %ju user-callbacks\n",
                 stats->ifaces, stats->addrs, stats->routes, stats->neighs,
                 stats->iface_events, stats->addr_events,
                 stats->route_events, stats->neigh_events,
-                stats->lookup_shares, stats->lookup_copies, stats->lookup_failures,
+                stats->lookup_shares, stats->zombie_shares,
+                stats->lookup_copies, stats->lookup_failures,
                 stats->netlink_errors, stats->user_callbacks_total);
   return ret;
 }
