@@ -90,6 +90,7 @@ typedef struct netstack {
   atomic_uintmax_t netlink_errors;
   atomic_uintmax_t user_callbacks_total;
   atomic_uintmax_t lookup_copies, lookup_shares, lookup_failures;
+  atomic_uintmax_t iface_events, addr_events, route_events, neigh_events;
   // Guards iface_hash and the hnext pointer of all netstack_ifaces. Does not
   // guard netstack_ifaces' reference counts *aside from* the case when we've
   // just looked the object up, and are about to share it. We must make that
@@ -590,6 +591,7 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   if(etype == NETSTACK_DEL || ns->opts.iface_notrack){
     netstack_iface_destroy(ni);
   }
+  ++ns->iface_events;
 }
 
 static inline void
@@ -598,6 +600,7 @@ vaddr_cb(netstack* ns, netstack_event_e etype, void* vna){
     ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
     ++ns->user_callbacks_total;
   }
+  ++ns->addr_events;
   free_addr(vna);
 }
 
@@ -607,6 +610,7 @@ vroute_cb(netstack* ns, netstack_event_e etype, void* vnr){
     ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
     ++ns->user_callbacks_total;
   }
+  ++ns->route_events;
   free_route(vnr);
 }
 
@@ -616,6 +620,7 @@ vneigh_cb(netstack* ns, netstack_event_e etype, void* vnn){
     ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
     ++ns->user_callbacks_total;
   }
+  ++ns->neigh_events;
   free_neigh(vnn);
 }
 
@@ -863,6 +868,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   ns->netlink_errors = 0;
   ns->user_callbacks_total = 0;
   ns->lookup_copies = ns->lookup_shares = ns->lookup_failures = 0;
+  ns->iface_events = ns->addr_events = ns->route_events = ns->neigh_events = 0;
   // Passes this netstack object to libnl. The nl_sock thus must be destroyed
   // before the netstack itself is.
   if(nl_socket_modify_cb(ns->nl, NL_CB_VALID, NL_CB_CUSTOM, msg_handler, ns)){
@@ -1265,11 +1271,20 @@ char* netstack_l2addrstr(unsigned l2type, size_t len, const void* addr){
 
 netstack_stats* netstack_sample_stats(const netstack* ns, netstack_stats* stats){
   netstack* unsafe_ns = (netstack*)ns;
-  memset(stats, 0, sizeof(*stats));
   stats->netlink_errors = ns->netlink_errors;
   stats->user_callbacks_total = ns->user_callbacks_total;
+  stats->lookup_copies = ns->lookup_copies;
+  stats->lookup_shares = ns->lookup_shares;
+  stats->lookup_failures = ns->lookup_failures;
+  stats->iface_events = ns->iface_events;
+  stats->addr_events = ns->addr_events;
+  stats->route_events = ns->route_events;
+  stats->neigh_events = ns->neigh_events;
   pthread_mutex_lock(&unsafe_ns->hashlock);
   stats->ifaces = ns->iface_count;
   pthread_mutex_unlock(&unsafe_ns->hashlock);
+  stats->addrs = 0;
+  stats->routes = 0;
+  stats->neighs = 0;
   return stats;
 }
