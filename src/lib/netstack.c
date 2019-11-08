@@ -86,8 +86,9 @@ typedef struct netstack {
   pthread_cond_t txcond;
   pthread_mutex_t txlock;
   atomic_bool clear_to_send;
-  pthread_mutex_t statslock;
-  netstack_stats stats;
+  // Statistics
+  atomic_uintmax_t netlink_errors;
+  atomic_uintmax_t user_callbacks_total;
   // Guards iface_hash and the hnext pointer of all netstack_ifaces. Does not
   // guard netstack_ifaces' reference counts *aside from* the case when we've
   // just looked the object up, and are about to share it. We must make that
@@ -103,13 +104,6 @@ typedef struct netstack {
   name_node* name_trie; // all netstack_iface objects, indexed by name
   netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
-
-static void
-inc_user_callback_stat(netstack* ns){
-  pthread_mutex_lock(&ns->statslock);
-  ++ns->stats.user_callbacks_total;
-  pthread_mutex_unlock(&ns->statslock);
-}
 
 static void
 destroy_name_trie(name_node* node){
@@ -590,7 +584,7 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   }
   if(ns->opts.iface_cb){
     ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
-    inc_user_callback_stat(ns);
+    ++ns->user_callbacks_total;
   }
   if(etype == NETSTACK_DEL || ns->opts.iface_notrack){
     netstack_iface_destroy(ni);
@@ -601,7 +595,7 @@ static inline void
 vaddr_cb(netstack* ns, netstack_event_e etype, void* vna){
   if(ns->opts.addr_cb){
     ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
-    inc_user_callback_stat(ns);
+    ++ns->user_callbacks_total;
   }
   free_addr(vna);
 }
@@ -610,7 +604,7 @@ static inline void
 vroute_cb(netstack* ns, netstack_event_e etype, void* vnr){
   if(ns->opts.route_cb){
     ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
-    inc_user_callback_stat(ns);
+    ++ns->user_callbacks_total;
   }
   free_route(vnr);
 }
@@ -619,7 +613,7 @@ static inline void
 vneigh_cb(netstack* ns, netstack_event_e etype, void* vnn){
   if(ns->opts.neigh_cb){
     ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
-    inc_user_callback_stat(ns);
+    ++ns->user_callbacks_total;
   }
   free_neigh(vnn);
 }
@@ -735,9 +729,7 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
   netstack* ns = vns;
   fprintf(stderr, "Netlink error (fam %d) %d (%s)\n", nla->nl_family,
           -nlerr->error, strerror(-nlerr->error));
-  pthread_mutex_lock(&ns->statslock);
-  ++ns->stats.netlink_errors;
-  pthread_mutex_unlock(&ns->statslock);
+  ++ns->netlink_errors;
   return NL_OK;
 }
 
@@ -867,7 +859,8 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     ns->txqueue[0] = -1;
     ns->queueidx = 0;
   }
-  memset(&ns->stats, 0, sizeof(ns->stats));
+  ns->netlink_errors = 0;
+  ns->user_callbacks_total = 0;
   // Passes this netstack object to libnl. The nl_sock thus must be destroyed
   // before the netstack itself is.
   if(nl_socket_modify_cb(ns->nl, NL_CB_VALID, NL_CB_CUSTOM, msg_handler, ns)){
@@ -882,20 +875,13 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     nl_socket_free(ns->nl);
     return -1;
   }
-  if(pthread_mutex_init(&ns->statslock, NULL)){
-    pthread_mutex_destroy(&ns->hashlock);
-    nl_socket_free(ns->nl);
-    return -1;
-  }
   if(pthread_mutex_init(&ns->txlock, NULL)){
-    pthread_mutex_destroy(&ns->statslock);
     pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
   }
   if(pthread_cond_init(&ns->txcond, NULL)){
     pthread_mutex_destroy(&ns->txlock);
-    pthread_mutex_destroy(&ns->statslock);
     pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
@@ -903,7 +889,6 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   if(pthread_create(&ns->rxtid, NULL, netstack_rx_thread, ns)){
     pthread_cond_destroy(&ns->txcond);
     pthread_mutex_destroy(&ns->txlock);
-    pthread_mutex_destroy(&ns->statslock);
     pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
@@ -913,7 +898,6 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     pthread_join(ns->txtid, NULL);
     pthread_cond_destroy(&ns->txcond);
     pthread_mutex_destroy(&ns->txlock);
-    pthread_mutex_destroy(&ns->statslock);
     pthread_mutex_destroy(&ns->hashlock);
     nl_socket_free(ns->nl);
     return -1;
@@ -967,7 +951,6 @@ int netstack_destroy(netstack* ns){
     ret |= pthread_cond_destroy(&ns->txcond);
     ret |= pthread_mutex_destroy(&ns->txlock);
     ret |= pthread_mutex_destroy(&ns->hashlock);
-    ret |= pthread_mutex_destroy(&ns->statslock);
     destroy_iface_cache(ns);
     destroy_name_trie(ns->name_trie);
     free(ns);
@@ -1260,8 +1243,11 @@ char* netstack_l2addrstr(unsigned l2type, size_t len, const void* addr){
 
 netstack_stats* netstack_sample_stats(const netstack* ns, netstack_stats* stats){
   netstack* unsafe_ns = (netstack*)ns;
-  pthread_mutex_lock(&unsafe_ns->statslock);
-  memcpy(stats, &ns->stats, sizeof(*stats));
-  pthread_mutex_unlock(&unsafe_ns->statslock);
+  memset(stats, 0, sizeof(*stats));
+  stats->netlink_errors = ns->netlink_errors;
+  stats->user_callbacks_total = ns->user_callbacks_total;
+  pthread_mutex_lock(&unsafe_ns->hashlock);
+  stats->ifaces = ns->iface_count;
+  pthread_mutex_unlock(&unsafe_ns->hashlock);
   return stats;
 }
