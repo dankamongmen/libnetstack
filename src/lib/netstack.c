@@ -105,6 +105,13 @@ typedef struct netstack {
 } netstack;
 
 static void
+inc_user_callback_stat(netstack* ns){
+  pthread_mutex_lock(&ns->statslock);
+  ++ns->stats.user_callbacks_total;
+  pthread_mutex_unlock(&ns->statslock);
+}
+
+static void
 destroy_name_trie(name_node* node){
   if(node){
     size_t z;
@@ -583,6 +590,7 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   }
   if(ns->opts.iface_cb){
     ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
+    inc_user_callback_stat(ns);
   }
   if(etype == NETSTACK_DEL || ns->opts.iface_notrack){
     netstack_iface_destroy(ni);
@@ -593,6 +601,7 @@ static inline void
 vaddr_cb(netstack* ns, netstack_event_e etype, void* vna){
   if(ns->opts.addr_cb){
     ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
+    inc_user_callback_stat(ns);
   }
   free_addr(vna);
 }
@@ -601,6 +610,7 @@ static inline void
 vroute_cb(netstack* ns, netstack_event_e etype, void* vnr){
   if(ns->opts.route_cb){
     ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
+    inc_user_callback_stat(ns);
   }
   free_route(vnr);
 }
@@ -609,6 +619,7 @@ static inline void
 vneigh_cb(netstack* ns, netstack_event_e etype, void* vnn){
   if(ns->opts.neigh_cb){
     ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
+    inc_user_callback_stat(ns);
   }
   free_neigh(vnn);
 }
