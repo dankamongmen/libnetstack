@@ -755,32 +755,55 @@ validate_options(const netstack_opts* nopts){
   return true;
 }
 
+// Filter the specified netlink dumper message from dumpmsgs, if it happens to
+// be there. *dumpcount will be updated in that case.
+static void
+filter_netlink_dumper(int* dumpmsgs, int* dumpcount, int dumper){
+  int z;
+  for(z = 0 ; z < *dumpcount ; ++z){
+    if(dumpmsgs[z] == dumper){
+      dumpmsgs[z] = dumpmsgs[--*dumpcount];
+      break;
+    }
+  }
+}
+
 // Determine which groups we want to subscribe to based off the
-// netstack_options, and subscribe to them. -1 on failure.
+// netstack_options, and subscribe to them. dumpmsgs will be filtered based
+// off what we subscribe to; it ought contain at first all possible dumpers,
+// of which there are dumpcount. the number remaining will be stored there.
 static int
-subscribe_to_netlink(const netstack* ns){
+subscribe_to_netlink(const netstack* ns, int* dumpmsgs, int* dumpcount){
   // We don't use nl_socket_add_memberships due to its weird varargs API.
   if(ns->opts.iface_cb || !ns->opts.iface_notrack){
     if(nl_socket_add_memberships(ns->nl, RTNLGRP_LINK, NFNLGRP_NONE)){
       return -1;
     }
+  }else{
+    filter_netlink_dumper(dumpmsgs, dumpcount, RTM_GETLINK);
   }
   if(ns->opts.addr_cb || !ns->opts.addr_notrack){
     if(nl_socket_add_memberships(ns->nl, RTNLGRP_IPV4_IFADDR,
                                  RTNLGRP_IPV6_IFADDR, NFNLGRP_NONE)){
       return -1;
     }
+  }else{
+    filter_netlink_dumper(dumpmsgs, dumpcount, RTM_GETADDR);
   }
   if(ns->opts.route_cb || !ns->opts.route_notrack){
     if(nl_socket_add_memberships(ns->nl, RTNLGRP_IPV4_ROUTE,
                                  RTNLGRP_IPV6_ROUTE, NFNLGRP_NONE)){
       return -1;
     }
+  }else{
+    filter_netlink_dumper(dumpmsgs, dumpcount, RTM_GETROUTE);
   }
   if(ns->opts.neigh_cb || !ns->opts.neigh_notrack){
     if(nl_socket_add_memberships(ns->nl, RTNLGRP_NEIGH, NFNLGRP_NONE)){
       return -1;
     }
+  }else{
+    filter_netlink_dumper(dumpmsgs, dumpcount, RTM_GETNEIGH);
   }
   return 0;
 }
@@ -791,7 +814,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     return -1;
   }
   // Get an initial dump of all entities, then updates via subscription.
-  static const int dumpmsgs[] = {
+  static int dumpmsgs[] = {
     RTM_GETLINK,
     RTM_GETADDR,
     RTM_GETNEIGH,
@@ -803,14 +826,6 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     memset(&ns->opts, 0, sizeof(ns->opts));
   }
   ns->nonce = 1;
-  if(ns->opts.initial_events != NETSTACK_INITIAL_EVENTS_NONE){
-    memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
-    ns->txqueue[sizeof(dumpmsgs) / sizeof(*dumpmsgs)] = -1;
-    ns->queueidx = sizeof(dumpmsgs) / sizeof(*dumpmsgs);
-  }else{
-    ns->txqueue[0] = -1;
-    ns->queueidx = 0;
-  }
   ns->dequeueidx = 0;
   ns->clear_to_send = true;
   ns->nl_errors = 0;
@@ -826,9 +841,18 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     nl_socket_free(ns->nl);
     return -1;
   }
-  if(subscribe_to_netlink(ns)){
+  int dumpercount = sizeof(dumpmsgs) / sizeof(*dumpmsgs);
+  if(subscribe_to_netlink(ns, dumpmsgs, &dumpercount)){
     nl_socket_free(ns->nl);
     return -1;
+  }
+  if(ns->opts.initial_events != NETSTACK_INITIAL_EVENTS_NONE){
+    memcpy(ns->txqueue, dumpmsgs, sizeof(dumpmsgs));
+    ns->txqueue[dumpercount] = -1;
+    ns->queueidx = dumpercount;
+  }else{
+    ns->txqueue[0] = -1;
+    ns->queueidx = 0;
   }
   // Passes this netstack object to libnl. The nl_sock thus must be destroyed
   // before the netstack itself is.
