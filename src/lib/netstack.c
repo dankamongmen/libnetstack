@@ -755,6 +755,36 @@ validate_options(const netstack_opts* nopts){
   return true;
 }
 
+// Determine which groups we want to subscribe to based off the
+// netstack_options, and subscribe to them. -1 on failure.
+static int
+subscribe_to_netlink(const netstack* ns){
+  // We don't use nl_socket_add_memberships due to its weird varargs API.
+  if(ns->opts.iface_cb || !ns->opts.iface_notrack){
+    if(nl_socket_add_memberships(ns->nl, RTNLGRP_LINK, NFNLGRP_NONE)){
+      return -1;
+    }
+  }
+  if(ns->opts.addr_cb || !ns->opts.addr_notrack){
+    if(nl_socket_add_memberships(ns->nl, RTNLGRP_IPV4_IFADDR,
+                                 RTNLGRP_IPV6_IFADDR, NFNLGRP_NONE)){
+      return -1;
+    }
+  }
+  if(ns->opts.route_cb || !ns->opts.route_notrack){
+    if(nl_socket_add_memberships(ns->nl, RTNLGRP_IPV4_ROUTE,
+                                 RTNLGRP_IPV6_ROUTE, NFNLGRP_NONE)){
+      return -1;
+    }
+  }
+  if(ns->opts.neigh_cb || !ns->opts.neigh_notrack){
+    if(nl_socket_add_memberships(ns->nl, RTNLGRP_NEIGH, NFNLGRP_NONE)){
+      return -1;
+    }
+  }
+  return 0;
+}
+
 static int
 netstack_init(netstack* ns, const netstack_opts* opts){
   if(!validate_options(opts)){
@@ -796,10 +826,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     nl_socket_free(ns->nl);
     return -1;
   }
-  if(nl_socket_add_memberships(ns->nl, RTNLGRP_LINK,
-                               RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR,
-                               RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE,
-                               RTNLGRP_NEIGH, NFNLGRP_NONE)){
+  if(subscribe_to_netlink(ns)){
     nl_socket_free(ns->nl);
     return -1;
   }
