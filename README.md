@@ -769,6 +769,30 @@ static inline bool netstack_neigh_cachestats(const struct netstack_neigh* nn,
 }
 ```
 
+## Statistics
+
+libnetstack maintains some statistics about each `netstack`, which can be
+atomically sampled.
+
+```c
+typedef struct netstack_stats {
+  // Current counts of each object class
+  unsigned ifaces, addrs, routes, neighs;
+  // Events for each object class (dumps + creations + changes + deletions)
+  uint64_t iface_events, addr_events, route_events, neigh_events;
+  // The number of times a lookup + share or lookup + copy succeeded
+  uint64_t lookup_shares, lookup_copies;
+  // The number of times the user looked up a key and it didn't exist
+  uint64_t lookup_failures;
+  uint64_t netlink_errors; // number of nlmsgerrs received from netlink
+  uint64_t user_callbacks_total; // number of times we've called back
+} netstack_stats;
+
+// Acquire the current statistics, atomically.
+netstack_stats* netstack_sample_stats(const struct netstack* ns,
+                                      netstack_stats* stats);
+```
+
 ## Examples
 
 
