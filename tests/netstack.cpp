@@ -56,7 +56,11 @@ TEST(Netstack, CreateInitialEventsNone) {
   nopts.iface_curry = &shouldnt_post;
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
-  sleep(1);
+  netstack_stats stats;
+  // races against a possible event, flaky :/ FIXME
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_EQ(0, stats.ifaces);
+  EXPECT_EQ(0, stats.iface_events);
   ASSERT_EQ(0, netstack_destroy(ns));
   ASSERT_EQ(0, shouldnt_post);
 }
@@ -72,7 +76,10 @@ TEST(Netstack, CreateInitialEventsBlock) {
   ASSERT_NE(nullptr, ns);
   int postcopy = post;
   ASSERT_NE(0, postcopy);
-  sleep(1);
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_LT(0, stats.ifaces);
+  EXPECT_LT(0, stats.iface_events);
   ASSERT_EQ(0, netstack_destroy(ns));
   ASSERT_EQ(postcopy, post);
 }
@@ -87,6 +94,10 @@ TEST(Netstack, IfaceCacheStats) {
   unsigned count = netstack_iface_count(ns);
   ASSERT_NE(0, count);
   ASSERT_LT(count, netstack_iface_bytes(ns));
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_LT(0, stats.ifaces);
+  EXPECT_LT(0, stats.iface_events);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
 
@@ -99,5 +110,9 @@ TEST(Netstack, IfaceCountNoCache) {
   struct netstack* ns = netstack_create(&nopts);
   ASSERT_NE(nullptr, ns);
   ASSERT_EQ(0, netstack_iface_count(ns));
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_EQ(0, stats.ifaces);
+  EXPECT_EQ(0, stats.iface_events);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
