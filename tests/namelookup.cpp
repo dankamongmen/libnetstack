@@ -11,6 +11,23 @@ struct copycurry {
   std::string name;
 };
 
+// Test that an invalid name fails the lookup, and that a stat is recorded
+TEST(NameLookup, BadNameRejected) {
+  netstack_opts nopts;
+  memset(&nopts, 0, sizeof(nopts));
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
+  struct netstack* ns = netstack_create(&nopts);
+  ASSERT_NE(nullptr, ns);
+  netstack_iface* ni = netstack_iface_copy_byname(ns, "");
+  EXPECT_EQ(nullptr, ni);
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_EQ(0, stats.lookup_shares);
+  EXPECT_EQ(0, stats.lookup_copies);
+  EXPECT_EQ(1, stats.lookup_failures);
+  ASSERT_EQ(0, netstack_destroy(ns));
+}
+
 // Sets up the callback subject interface to be copied or shared by a thread
 // external to the libnetstack event engine.
 static void
@@ -46,6 +63,10 @@ TEST(NameLookup, IfaceDeepCopy) {
   ASSERT_EQ(idx, idx2);
   netstack_iface_abandon(ni2);
   cc.mlock.unlock();
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_LT(0, stats.lookup_copies);
+  EXPECT_EQ(0, stats.lookup_failures);
   ASSERT_EQ(0, netstack_destroy(ns));
   netstack_iface_abandon(ni); // we should still be able to use it
 }
@@ -71,6 +92,10 @@ TEST(NameLookup, IfaceShare) {
   ASSERT_EQ(idx, idx2);
   netstack_iface_abandon(ni2);
   cc.mlock.unlock();
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_LT(0, stats.lookup_shares);
+  EXPECT_EQ(0, stats.lookup_failures);
   ASSERT_EQ(0, netstack_destroy(ns));
   netstack_iface_abandon(ni); // we should still be able to use it
 }
