@@ -586,21 +586,21 @@ viface_cb(netstack* ns, netstack_event_e etype, void* vni){
   }
   if(ns->opts.iface_cb){
     ns->opts.iface_cb(ni, etype, ns->opts.iface_curry);
-    ++ns->user_callbacks_total;
+    atomic_fetch_add(&ns->user_callbacks_total, 1);
   }
   if(etype == NETSTACK_DEL || ns->opts.iface_notrack){
     netstack_iface_destroy(ni);
   }
-  ++ns->iface_events;
+  atomic_fetch_add(&ns->iface_events, 1);
 }
 
 static inline void
 vaddr_cb(netstack* ns, netstack_event_e etype, void* vna){
   if(ns->opts.addr_cb){
     ns->opts.addr_cb(vna, etype, ns->opts.addr_curry);
-    ++ns->user_callbacks_total;
+    atomic_fetch_add(&ns->user_callbacks_total, 1);
   }
-  ++ns->addr_events;
+  atomic_fetch_add(&ns->addr_events, 1);
   free_addr(vna);
 }
 
@@ -608,9 +608,9 @@ static inline void
 vroute_cb(netstack* ns, netstack_event_e etype, void* vnr){
   if(ns->opts.route_cb){
     ns->opts.route_cb(vnr, etype, ns->opts.route_curry);
-    ++ns->user_callbacks_total;
+    atomic_fetch_add(&ns->user_callbacks_total, 1);
   }
-  ++ns->route_events;
+  atomic_fetch_add(&ns->route_events, 1);
   free_route(vnr);
 }
 
@@ -618,9 +618,9 @@ static inline void
 vneigh_cb(netstack* ns, netstack_event_e etype, void* vnn){
   if(ns->opts.neigh_cb){
     ns->opts.neigh_cb(vnn, etype, ns->opts.neigh_curry);
-    ++ns->user_callbacks_total;
+    atomic_fetch_add(&ns->user_callbacks_total, 1);
   }
-  ++ns->neigh_events;
+  atomic_fetch_add(&ns->neigh_events, 1);
   free_neigh(vnn);
 }
 
@@ -735,7 +735,7 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
   netstack* ns = vns;
   fprintf(stderr, "Netlink error (fam %d) %d (%s)\n", nla->nl_family,
           -nlerr->error, strerror(-nlerr->error));
-  ++ns->netlink_errors;
+  atomic_fetch_add(&ns->netlink_errors, 1);
   return NL_OK;
 }
 
@@ -1003,9 +1003,9 @@ const netstack_iface* netstack_iface_share_byname(netstack* ns, const char* name
   }
   pthread_mutex_unlock(&ns->hashlock);
   if(ni){
-    ++ns->lookup_shares;
+    atomic_fetch_add(&ns->lookup_shares, 1);
   }else{
-    ++ns->lookup_failures;
+    atomic_fetch_add(&ns->lookup_failures, 1);
   }
   return ni;
 }
@@ -1057,9 +1057,9 @@ const netstack_iface* netstack_iface_share_byidx(netstack* ns, int idx){
   }
   pthread_mutex_unlock(&ns->hashlock);
   if(ni){
-    ++ns->lookup_shares;
+    atomic_fetch_add(&ns->lookup_shares, 1);
   }else{
-    ++ns->lookup_failures;
+    atomic_fetch_add(&ns->lookup_failures, 1);
   }
   return ni;
 }
