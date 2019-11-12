@@ -7,6 +7,7 @@
 // stashes the index of the callback subject interface
 struct copycurry {
   std::mutex mlock;
+  struct netstack* ns;
   const struct netstack_iface* ni1; // abandoned prior to nestack_destroy
   const struct netstack_iface* ni2; // abandoned following netstack_destroy
 };
@@ -73,6 +74,11 @@ TEST(CopyIface, CallbackShare) {
   ASSERT_NE(nullptr, cc.ni1);
   ASSERT_NE(nullptr, cc.ni2);
   netstack_iface_abandon(cc.ni1);
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_EQ(0, stats.lookup_shares);
+  EXPECT_EQ(0, stats.lookup_copies);
+  EXPECT_EQ(0, stats.lookup_failures);
   ASSERT_EQ(0, netstack_destroy(ns));
   netstack_iface_abandon(cc.ni2); // we should still be able to use it
 }
