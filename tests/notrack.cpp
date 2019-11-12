@@ -77,5 +77,9 @@ TEST(NoTrack, IfaceFailsLookup) {
   ASSERT_EQ(nullptr, ni);
   ni = netstack_iface_share_byidx(ns, cc.idx);
   ASSERT_EQ(nullptr, ni);
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_EQ(0, stats.ifaces);
+  EXPECT_LT(0, stats.iface_events);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
