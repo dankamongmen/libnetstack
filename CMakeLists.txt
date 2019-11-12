@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(netstack VERSION 0.5.0
+project(netstack VERSION 0.6.0
   DESCRIPTION "Netlink-based networking stack model"
   HOMEPAGE_URL "https://github.com/dankamongmen/netstack"
   LANGUAGES C CXX)
