@@ -4,6 +4,25 @@
 // Unit tests for copying/sharing objects previously registered via callback,
 // from outside of the callback context.
 
+// Test that an invalid index fails the lookup, and that a stat is recorded
+TEST(IdxLookup, BadIndexRejected) {
+  netstack_opts nopts;
+  memset(&nopts, 0, sizeof(nopts));
+  nopts.initial_events = netstack_opts::NETSTACK_INITIAL_EVENTS_BLOCK;
+  struct netstack* ns = netstack_create(&nopts);
+  ASSERT_NE(nullptr, ns);
+  netstack_iface* ni = netstack_iface_copy_byidx(ns, -1);
+  EXPECT_EQ(nullptr, ni);
+  ni = netstack_iface_copy_byidx(ns, 0);
+  EXPECT_EQ(nullptr, ni);
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  EXPECT_EQ(0, stats.lookup_shares);
+  EXPECT_EQ(0, stats.lookup_copies);
+  EXPECT_EQ(2, stats.lookup_failures);
+  ASSERT_EQ(0, netstack_destroy(ns));
+}
+
 // stashes the index of the callback subject interface
 struct copycurry {
   std::mutex mlock;
@@ -46,6 +65,12 @@ TEST(IdxLookup, IfaceDeepCopy) {
   ASSERT_STREQ(name, name2);
   netstack_iface_abandon(ni2);
   cc.mlock.unlock();
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  ASSERT_LT(0, stats.ifaces);
+  ASSERT_LT(0, stats.iface_events);
+  ASSERT_LT(0, stats.lookup_copies);
+  ASSERT_EQ(0, stats.lookup_shares);
   ASSERT_EQ(0, netstack_destroy(ns));
   netstack_iface_abandon(ni); // we should still be able to use it
 }
@@ -73,6 +98,12 @@ TEST(IdxLookup, IfaceShare) {
   ASSERT_STREQ(name, name2);
   netstack_iface_abandon(ni2);
   cc.mlock.unlock();
+  netstack_stats stats;
+  ASSERT_NE(nullptr, netstack_sample_stats(ns, &stats));
+  ASSERT_LT(0, stats.ifaces);
+  ASSERT_LT(0, stats.iface_events);
+  ASSERT_LT(0, stats.lookup_shares);
+  ASSERT_EQ(0, stats.lookup_copies);
   ASSERT_EQ(0, netstack_destroy(ns));
   netstack_iface_abandon(ni); // we should still be able to use it
 }

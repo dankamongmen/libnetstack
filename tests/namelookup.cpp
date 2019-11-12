@@ -5,12 +5,6 @@
 // Unit tests for copying/sharing objects previously registered via callback,
 // from outside of the callback context.
 
-// stashes the index of the callback subject interface
-struct copycurry {
-  std::mutex mlock;
-  std::string name;
-};
-
 // Test that an invalid name fails the lookup, and that a stat is recorded
 TEST(NameLookup, BadNameRejected) {
   netstack_opts nopts;
@@ -27,6 +21,12 @@ TEST(NameLookup, BadNameRejected) {
   EXPECT_EQ(1, stats.lookup_failures);
   ASSERT_EQ(0, netstack_destroy(ns));
 }
+
+// stashes the index of the callback subject interface
+struct copycurry {
+  std::mutex mlock;
+  std::string name;
+};
 
 // Sets up the callback subject interface to be copied or shared by a thread
 // external to the libnetstack event engine.
