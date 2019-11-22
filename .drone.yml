@@ -1,3 +1,4 @@
+---
 pipeline:
   prep:
     image: library/debian:unstable
@@ -10,3 +11,8 @@ pipeline:
       - cmake ..
       - make
       - make test
+---
+kind: signature
+hmac: a444bb62b69e2c9321411af39897333de619f1b5a1fa93c821ee8000573f65da
+
+...
