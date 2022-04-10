@@ -218,7 +218,7 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(ni->rtabuf)) + rtaoff);
   memcpy(&ni->ifi, ifi, sizeof(*ifi));
-  if(rta->rta_type > IFLA_MAX_MTU){
+  if(rta->rta_type > IFLA_MAX){
     fprintf(stderr, "Unknown IFLA_RTA type %d len %d\n", rta->rta_type, *rlen);
     ni->unknown_attrs = true;
     return true;
@@ -243,7 +243,7 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(na->rtabuf)) + rtaoff);
   memcpy(&na->ifa, ifa, sizeof(*ifa));
-  if(rta->rta_type > IFA_TARGET_NETNSID){
+  if(rta->rta_type > IFA_MAX){
     fprintf(stderr, "Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
     na->unknown_attrs = true;
     return true;
@@ -258,7 +258,7 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(nr->rtabuf)) + rtaoff);
   memcpy(&nr->rt, rt, sizeof(*rt));
-  if(rta->rta_type > RTA_NH_ID){
+  if(rta->rta_type > RTA_MAX){
       fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
       nr->unknown_attrs = true;
       return true;
@@ -273,7 +273,7 @@ neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(nn->rtabuf)) + rtaoff);
   memcpy(&nn->nd, nd, sizeof(*nd));
-  if(rta->rta_type > NDA_PROTOCOL){
+  if(rta->rta_type > NDA_MAX){
     fprintf(stderr, "Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
     nn->unknown_attrs = true;
     return true;
