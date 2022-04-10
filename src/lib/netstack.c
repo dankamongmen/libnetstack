@@ -826,7 +826,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     return -1;
   }
   // Get an initial dump of all entities, then updates via subscription.
-  static int dumpmsgs[] = {
+  int dumpmsgs[] = {
     RTM_GETLINK,
     RTM_GETADDR,
     RTM_GETNEIGH,
