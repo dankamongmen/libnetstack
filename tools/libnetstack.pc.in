@@ -8,5 +8,5 @@ Description: Stack-modeling library atop rtnetlink
 Version: @PROJECT_VERSION@
 ￼	
 Requires:
-Libs: -L${libdir}
+Libs: -L${libdir} -lnetstack
 Cflags: -I${includedir}
