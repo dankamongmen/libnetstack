@@ -293,6 +293,29 @@ netstack_l3addrstr(int fam, const void* addr, char* str, size_t slen){
   return str;
 }
 
+static inline int
+netstack_rtattr_l3addr(int fam, const struct rtattr* rta,
+                       void* addr, size_t* alen){
+  if(fam == AF_INET){
+    if(*alen < 4){
+      return -1;
+    }
+    *alen = 4;
+  }else if(fam == AF_INET6){
+    if(*alen < 16){
+      return -1;
+    }
+    *alen = 16;
+  }else{
+    return -1;
+  }
+  if(RTA_PAYLOAD(rta) != *alen){
+    return -1;
+  }
+  memcpy(addr, RTA_DATA(rta), *alen);
+  return 0;
+}
+
 static inline char*
 netstack_rtattr_l3addrstr(int fam, const struct rtattr* rta,
                           char* str, size_t slen){
@@ -379,6 +402,26 @@ unsigned netstack_addr_flags(const struct netstack_addr* na);
 unsigned netstack_addr_scope(const struct netstack_addr* na);
 int netstack_addr_index(const struct netstack_addr* na);
 
+// Returns 0 iff there is an IFA_ADDRESS layer 3 address associated with this
+// entry, *and* addr is large enough to hold the result. addr's size is
+// passed in *alen, and the resulting size is returned there. alen ought be
+// at least 16, to handle 128-bit IPv6 addresses. family will hold the result
+// of netstack_addr_family() (assuming that an IFA_ADDRESS rtattr was indeed
+// present).
+static inline int
+netstack_addr_address(const struct netstack_addr* na, void* addr,
+                      size_t* alen, unsigned* family){
+  const struct rtattr* narta = netstack_addr_attr(na, IFA_ADDRESS);
+  if(narta == NULL){
+    return -1;
+  }
+  *family = netstack_addr_family(na);
+  if(netstack_rtattr_l3addr(*family, narta, addr, alen)){
+    return -1;
+  }
+  return 0;
+}
+
 // Returns true iff there is an IFA_ADDRESS layer 3 address associated with this
 // entry, *and* it can be transformed into a presentable string, *and* buf is
 // large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
@@ -396,6 +439,26 @@ netstack_addr_addressstr(const struct netstack_addr* na, char* buf,
     return NULL;
   }
   return buf;
+}
+
+// Returns 0 iff there is an IFA_LOCAL layer 3 address associated with this
+// entry, *and* addr is large enough to hold the result. addr's size is
+// passed in *alen, and the resulting size is returned there. alen ought be
+// at least 16, to handle 128-bit IPv6 addresses. family will hold the result
+// of netstack_addr_family() (assuming that an IFA_LOCAL rtattr was indeed
+// present).
+static inline int
+netstack_addr_local(const struct netstack_addr* na, void* addr,
+                    size_t* alen, unsigned* family){
+  const struct rtattr* narta = netstack_addr_attr(na, IFA_LOCAL);
+  if(narta == NULL){
+    return -1;
+  }
+  *family = netstack_addr_family(na);
+  if(netstack_rtattr_l3addr(*family, narta, addr, alen)){
+    return -1;
+  }
+  return 0;
 }
 
 // Returns true iff there is an IFA_LOCAL layer 3 address associated with this
