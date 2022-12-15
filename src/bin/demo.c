@@ -37,7 +37,7 @@ int main(void){
       netstack_stats stats;
       netstack_sample_stats(ns, &stats);
       netstack_print_stats(&stats, stdout);
-    }else if(errno == EINVAL){
+    }else{
       fprintf(stderr, "Couldn't wait on signals (%s)\n", strerror(errno));
       return EXIT_FAILURE;
     }
