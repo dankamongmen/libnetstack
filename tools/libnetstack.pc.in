@@ -7,7 +7,7 @@ Name: @PROJECT_NAME@
 Description: Stack-modeling library atop rtnetlink
 Version: @PROJECT_VERSION@
 ￼	
-Requires:
+Requires: libnl-3.0
 Requires.private: libnl-3.0
 Libs: -L${libdir} -lnetstack
 Cflags: -I${includedir}
