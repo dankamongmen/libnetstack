@@ -37,14 +37,17 @@ ctest -V %{?_smp_mflags}
 %cmake_install
 
 %files
+%{_bindir}/netstack-demo
 %{_libdir}/libnetstack.so.*
-%license COPYING
+%license LICENSE
 
 %files devel
 %{_includedir}/netstack.h
 %{_libdir}/libnetstack.so
 %{_libdir}/libnetstack.a
 %{_libdir}/pkgconfig/*
+%{_libdir}/cmake/libnetstack
+%{_libdir}/cmake/libnetstack/*
 
 %changelog
 * Sun Jan 01 2023 nick black <nickblack@linux.com> - 0.7.0-1
