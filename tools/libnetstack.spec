@@ -24,23 +24,26 @@ Header files for libnetstack.
 %prep
 %autosetup
 
-%build
-%set_build_flags
-./configure --prefix=%{_prefix} --libdir=/%{_libdir} --libdevdir=/%{_libdir} --mandir=%{_mandir} --includedir=%{_includedir}
+%define __cmake_in_source_build 1
 
-%make_build
+%build
+%cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+%cmake_build
+
+%check
+ctest -V %{?_smp_mflags}
 
 %install
-%make_install
+%cmake_install
 
 %files
-%attr(0755,root,root) %{_libdir}/libnetstack.so.*
+%{_libdir}/libnetstack.so.*
 %license COPYING
 
 %files devel
 %{_includedir}/netstack.h
 %{_libdir}/libnetstack.so
-%exclude %{_libdir}/libnetstack.a
+%{_libdir}/libnetstack.a
 %{_libdir}/pkgconfig/*
 
 %changelog
