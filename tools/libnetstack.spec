@@ -44,5 +44,5 @@ Header files for libnetstack.
 %{_libdir}/pkgconfig/*
 
 %changelog
-* Sun, 01 Jan 2023 nick black <nickblack@linux.com> - 0.7.0-1
+* Sun Jan 01 2023 nick black <nickblack@linux.com> - 0.7.0-1
 - Initial version
