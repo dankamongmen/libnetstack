@@ -47,7 +47,6 @@ ctest -V %{?_smp_mflags}
 %{_libdir}/libnetstack.a
 %{_libdir}/pkgconfig/*
 %{_libdir}/cmake/libnetstack
-%{_libdir}/cmake/libnetstack/*
 
 %changelog
 * Sun Jan 01 2023 nick black <nickblack@linux.com> - 0.7.0-1
