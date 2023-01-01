@@ -8,6 +8,7 @@ URL: https://github.com/dankamongmen/libnetstack
 BuildRequires: gcc
 BuildRequires: make
 BuildRequires: cmake
+BuildRequires: libnl3-devel
 
 %description
 Libnetstack, a small library for modeling the machine's networking.
