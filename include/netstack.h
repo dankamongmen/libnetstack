@@ -684,12 +684,12 @@ typedef struct netstack_opts {
   } initial_events;
   // logging callback. if NULL, the library will not log. netstack_stderr_diag
   // can be provided to dump to stderr, or provide your own function.
-  void (*diagfxn)(const char* fmt, va_list va);
+  void (*diagfxn)(const char* fmt, ...);
 } netstack_opts;
 
 // provide this as netstack_opts->diagfxn to get freeform diagnostics dumped
 // to stderr.
-void netstack_stderr_diag(const char* fmt, va_list va);
+void netstack_stderr_diag(const char* fmt, ...);
 
 // Opts may be NULL, in which case the defaults will be used.
 struct netstack* netstack_create(const netstack_opts* opts);

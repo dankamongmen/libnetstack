@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -177,7 +178,7 @@ netstack_rx_thread(void* vns){
     ns->clear_to_send = true;
     pthread_cond_broadcast(&ns->txcond);
   }
-  fprintf(stderr, "Error rxing from netlink socket (%s)\n", nl_geterror(ret));
+  ns->opts.diagfxn("Error rxing from netlink socket (%s)\n", nl_geterror(ret));
   // FIXME recover?
   return NULL;
 }
@@ -214,12 +215,12 @@ netstack_tx_thread(void* vns){
 
 static bool
 iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
-                  size_t rtaoff, int* rlen){
+                  size_t rtaoff, int* rlen __attribute__ ((unused))){
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(ni->rtabuf)) + rtaoff);
   memcpy(&ni->ifi, ifi, sizeof(*ifi));
   if(rta->rta_type > IFLA_MAX){
-    fprintf(stderr, "Unknown IFLA_RTA type %d len %d\n", rta->rta_type, *rlen);
+    // FIXME need ns ns->opts.diagfxn("Unknown IFLA_RTA type %d len %d\n", rta->rta_type, *rlen);
     ni->unknown_attrs = true;
     return true;
   }
@@ -228,7 +229,7 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
                   RTA_PAYLOAD(rta) : sizeof(ni->name);
     size_t nlen = strnlen(RTA_DATA(rta), max);
     if(nlen == max){
-      fprintf(stderr, "Invalid name [%.*s]\n", (int)max, (const char*)(RTA_DATA(rta)));
+      // FIXME need ns ns->opts.diagfxn("Invalid name [%.*s]\n", (int)max, (const char*)(RTA_DATA(rta)));
       return false;
     }
     memcpy(ni->name, RTA_DATA(rta), nlen + 1);
@@ -239,12 +240,12 @@ iface_rta_handler(netstack_iface* ni, const struct ifinfomsg* ifi,
 
 static bool
 addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
-                  size_t rtaoff, int* rlen){
+                  size_t rtaoff, int* rlen __attribute__ ((unused))){
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(na->rtabuf)) + rtaoff);
   memcpy(&na->ifa, ifa, sizeof(*ifa));
   if(rta->rta_type > IFA_MAX){
-    fprintf(stderr, "Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
+    // FIXME need ns ns->opts.diagfxn("Unknown IFA_RTA type %d len %d\n", rta->rta_type, *rlen);
     na->unknown_attrs = true;
     return true;
   }
@@ -254,12 +255,12 @@ addr_rta_handler(netstack_addr* na, const struct ifaddrmsg* ifa,
 
 static bool
 route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
-                  size_t rtaoff, int* rlen){
+                  size_t rtaoff, int* rlen __attribute__ ((unused))){
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(nr->rtabuf)) + rtaoff);
   memcpy(&nr->rt, rt, sizeof(*rt));
   if(rta->rta_type > RTA_MAX){
-      fprintf(stderr, "Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
+      // FIXME need ns ns->opts.diagfxn("Unknown RTN_RTA type %d len %d\n", rta->rta_type, *rlen);
       nr->unknown_attrs = true;
       return true;
   }
@@ -269,12 +270,12 @@ route_rta_handler(netstack_route* nr, const struct rtmsg* rt,
 
 static bool
 neigh_rta_handler(netstack_neigh* nn, const struct ndmsg* nd,
-                  size_t rtaoff, int* rlen){
+                  size_t rtaoff, int* rlen __attribute__ ((unused))){
   const struct rtattr* rta = (const struct rtattr*)
     (((const char*)(nn->rtabuf)) + rtaoff);
   memcpy(&nn->nd, nd, sizeof(*nd));
   if(rta->rta_type > NDA_MAX){
-    fprintf(stderr, "Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
+    // FIXME need ns ns->opts.diagfxn("Unknown ND_RTA type %d len %d\n", rta->rta_type, *rlen);
     nn->unknown_attrs = true;
     return true;
   }
@@ -690,7 +691,7 @@ msg_handler_internal(struct nl_msg* msg, netstack* ns){
         gfxn = vcreate_neigh;
         etype = (ntype == RTM_DELNEIGH) ? NETSTACK_DEL : NETSTACK_MOD;
         break;
-      default: fprintf(stderr, "Unknown nl type: %d\n", ntype); break;
+      default: ns->opts.diagfxn("Unknown nl type: %d\n", ntype); break;
     }
     if(hdrsize == 0){
       break;
@@ -708,14 +709,14 @@ msg_handler_internal(struct nl_msg* msg, netstack* ns){
     }
     if(rlen){
       dfxn(newobj);
-      fprintf(stderr, "Netlink attr was invalid, %db left\n", rlen);
+      ns->opts.diagfxn("Netlink attr was invalid, %db left\n", rlen);
       return NL_SKIP;
     }
     cfxn(ns, etype, newobj);
     nhdr = nlmsg_next(nhdr, &nlen);
   }
   if(nlen){
-    fprintf(stderr, "Netlink message was invalid, %db left\n", nlen);
+    ns->opts.diagfxn("Netlink message was invalid, %db left\n", nlen);
     return NL_SKIP;
   }
   return NL_OK;
@@ -733,14 +734,22 @@ msg_handler(struct nl_msg* msg, void* vns){
 static int
 err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
   netstack* ns = vns;
-  fprintf(stderr, "Netlink error (fam %d) %d (%s)\n", nla->nl_family,
+  ns->opts.diagfxn("Netlink error (fam %d) %d (%s)\n", nla->nl_family,
           -nlerr->error, strerror(-nlerr->error));
   atomic_fetch_add(&ns->netlink_errors, 1);
   return NL_OK;
 }
 
-void netstack_stderr_diag(const char* fmt, va_list va){
+void netstack_stderr_diag(const char* fmt, ...){
+  va_list va;
+  va_start(va, fmt);
   vfprintf(stderr, fmt, va);
+  va_end(va);
+}
+
+static void
+null_diagfxn(const char* fmt, ...){
+  (void)fmt;
 }
 
 static bool
@@ -840,6 +849,9 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     memcpy(&ns->opts, opts, sizeof(*opts));
   }else{
     memset(&ns->opts, 0, sizeof(ns->opts));
+  }
+  if(ns->opts.diagfxn == NULL){
+    ns->opts.diagfxn = null_diagfxn;
   }
   ns->nonce = 1;
   ns->dequeueidx = 0;
