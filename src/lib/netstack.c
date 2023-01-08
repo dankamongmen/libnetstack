@@ -739,6 +739,10 @@ err_handler(struct sockaddr_nl* nla, struct nlmsgerr* nlerr, void* vns){
   return NL_OK;
 }
 
+void netstack_stderr_diag(const char* fmt, va_list va){
+  vfprintf(stderr, fmt, va);
+}
+
 static bool
 validate_options(const netstack_opts* nopts){
   // NULL? No problem! All zeroes maps to all defaults, is all good!

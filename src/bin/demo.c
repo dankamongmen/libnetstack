@@ -19,6 +19,7 @@ int main(void){
     .route_curry = stdout,
     .neigh_cb = vnetstack_print_neigh,
     .neigh_curry = stdout,
+    .diagfxn = netstack_stderr_diag,
   };
   struct netstack* ns = netstack_create(&nopts);
   if(ns == NULL){
