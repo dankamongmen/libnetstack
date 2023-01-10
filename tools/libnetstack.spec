@@ -3,7 +3,7 @@ Version: 0.7.1
 Release: 1%{?dist}
 Summary: Track addresses, interfaces, routes and neighbors
 License: Apache-2.0
-Source0: https://github.com/dankamongmen/libnetstack/archive/refs/tags/v0.7.0.tar.gz
+Source0: https://github.com/dankamongmen/libnetstack/archive/refs/tags/v%{version}.tar.gz
 URL: https://github.com/dankamongmen/libnetstack
 BuildRequires: gcc
 BuildRequires: make
