@@ -509,6 +509,11 @@ unsigned netstack_route_scope(const struct netstack_route* nr);
 unsigned netstack_route_type(const struct netstack_route* nr);
 unsigned netstack_route_flags(const struct netstack_route* nr);
 
+// default routes are those with 0-length destinations
+static inline bool netstack_route_default(const struct netstack_route* nr){
+  return !netstack_route_dst_len(nr);
+}
+
 static inline bool netstack_route_notify(const struct netstack_route* nr){
   return netstack_route_flags(nr) & RTM_F_NOTIFY;
 }
