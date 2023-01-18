@@ -407,7 +407,8 @@ int netstack_addr_index(const struct netstack_addr* na);
 // passed in *alen, and the resulting size is returned there. alen ought be
 // at least 16, to handle 128-bit IPv6 addresses. family will hold the result
 // of netstack_addr_family() (assuming that an IFA_ADDRESS rtattr was indeed
-// present).
+// present). IFA_ADDRESS is the same as IFA_LOCAL on a broadcast interface; on
+// point-to-point, it is the opposite end.
 static inline int
 netstack_addr_address(const struct netstack_addr* na, void* addr,
                       size_t* alen, unsigned* family){
@@ -426,7 +427,8 @@ netstack_addr_address(const struct netstack_addr* na, void* addr,
 // entry, *and* it can be transformed into a presentable string, *and* buf is
 // large enough to hold the result. buflen ought be at least INET6_ADDRSTRLEN.
 // family will hold the result of netstack_addr_family() (assuming that an
-// IFA_ADDRESS rtattr was indeed present).
+// IFA_ADDRESS rtattr was indeed present). IFA_ADDRESS is the same as IFA_LOCAL
+// on a broadcast interface; on point-to-point, it is the opposite end.
 static inline char*
 netstack_addr_addressstr(const struct netstack_addr* na, char* buf,
                          size_t buflen, unsigned* family){
@@ -532,16 +534,76 @@ netstack_route_str(const struct netstack_route* nr, int attr, char* buf,
   return true;
 }
 
+// Returns 0 iff there is an RTA_DST layer 3 address associated with this
+// entry, *and* addr is large enough to hold the result. addr's size is
+// passed in *alen, and the resulting size is returned there. alen ought be
+// at least 16, to handle 128-bit IPv6 addresses. family will hold the result
+// of netstack_route_family() (assuming that an RTA_DST rtattr was indeed
+// present).
+static inline int
+netstack_route_dst(const struct netstack_route* nr, void* addr,
+                   size_t* alen, unsigned* family){
+  const struct rtattr* nrrta = netstack_route_attr(nr, RTA_DST);
+  if(nrrta == NULL){
+    return -1;
+  }
+  *family = netstack_route_family(nr);
+  if(netstack_rtattr_l3addr(*family, nrrta, addr, alen)){
+    return -1;
+  }
+  return 0;
+}
+
 static inline bool netstack_route_dststr(const struct netstack_route* nr,
                                          char* buf, size_t buflen,
                                          unsigned* family){
   return netstack_route_str(nr, RTA_DST, buf, buflen, family);
 }
 
+// Returns 0 iff there is an RTA_SRC layer 3 address associated with this
+// entry, *and* addr is large enough to hold the result. addr's size is
+// passed in *alen, and the resulting size is returned there. alen ought be
+// at least 16, to handle 128-bit IPv6 addresses. family will hold the result
+// of netstack_route_family() (assuming that an RTA_SRC rtattr was indeed
+// present).
+static inline int
+netstack_route_src(const struct netstack_route* nr, void* addr,
+                   size_t* alen, unsigned* family){
+  const struct rtattr* nrrta = netstack_route_attr(nr, RTA_SRC);
+  if(nrrta == NULL){
+    return -1;
+  }
+  *family = netstack_route_family(nr);
+  if(netstack_rtattr_l3addr(*family, nrrta, addr, alen)){
+    return -1;
+  }
+  return 0;
+}
+
 static inline bool netstack_route_srcstr(const struct netstack_route* nr,
                                          char* buf, size_t buflen,
                                          unsigned* family){
   return netstack_route_str(nr, RTA_SRC, buf, buflen, family);
+}
+
+// Returns 0 iff there is an RTA_GATEWAY layer 3 address associated with this
+// entry, *and* addr is large enough to hold the result. addr's size is
+// passed in *alen, and the resulting size is returned there. alen ought be
+// at least 16, to handle 128-bit IPv6 addresses. family will hold the result
+// of netstack_route_family() (assuming that an RTA_GATEWAY rtattr was indeed
+// present).
+static inline int
+netstack_route_gateway(const struct netstack_route* nr, void* addr,
+                       size_t* alen, unsigned* family){
+  const struct rtattr* nrrta = netstack_route_attr(nr, RTA_GATEWAY);
+  if(nrrta == NULL){
+    return -1;
+  }
+  *family = netstack_route_family(nr);
+  if(netstack_rtattr_l3addr(*family, nrrta, addr, alen)){
+    return -1;
+  }
+  return 0;
 }
 
 static inline bool netstack_route_gatewaystr(const struct netstack_route* nr,
