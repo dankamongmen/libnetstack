@@ -494,7 +494,8 @@ netstack_addr_cacheinfo(const struct netstack_addr* na, struct ifa_cacheinfo* ci
   return netstack_rtattrcpy_exact(rta, cinfo, sizeof(*cinfo));
 }
 
-// Functions for inspecting netstack_routes
+// Functions for inspecting netstack_routes. There is no netstack_route_index()
+// because routes can have both incoming (RTA_IIF) and outgoing (RTA_OIF) ifaces.
 const struct rtattr* netstack_route_attr(const struct netstack_route* nr, int attridx);
 unsigned netstack_route_family(const struct netstack_route* nr);
 unsigned netstack_route_dst_len(const struct netstack_route* nr);
