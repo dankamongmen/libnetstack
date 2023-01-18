@@ -408,7 +408,7 @@ int netstack_addr_index(const struct netstack_addr* na);
 // at least 16, to handle 128-bit IPv6 addresses. family will hold the result
 // of netstack_addr_family() (assuming that an IFA_ADDRESS rtattr was indeed
 // present). IFA_ADDRESS is the same as IFA_LOCAL on a broadcast interface; on
-// point-to-point, it is the opposite end.
+// point-to-point, it is the opposite end. IPv6 doesn't use IFA_LOCAL.
 static inline int
 netstack_addr_address(const struct netstack_addr* na, void* addr,
                       size_t* alen, unsigned* family){
@@ -429,6 +429,7 @@ netstack_addr_address(const struct netstack_addr* na, void* addr,
 // family will hold the result of netstack_addr_family() (assuming that an
 // IFA_ADDRESS rtattr was indeed present). IFA_ADDRESS is the same as IFA_LOCAL
 // on a broadcast interface; on point-to-point, it is the opposite end.
+// IPv6 doesn't use IFA_LOCAL.
 static inline char*
 netstack_addr_addressstr(const struct netstack_addr* na, char* buf,
                          size_t buflen, unsigned* family){
