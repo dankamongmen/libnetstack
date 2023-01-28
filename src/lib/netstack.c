@@ -928,7 +928,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   }
   if(ns->opts.initial_events == NETSTACK_INITIAL_EVENTS_BLOCK){
     pthread_mutex_lock(&ns->txlock);
-    while(ns->txqueue[ns->dequeueidx] != -1){
+    while(!ns->clear_to_send || ns->txqueue[ns->dequeueidx] != -1){
       pthread_cond_wait(&ns->txcond, &ns->txlock);
     }
     pthread_mutex_unlock(&ns->txlock);
