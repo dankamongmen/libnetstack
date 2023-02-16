@@ -18,12 +18,15 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
   char* llstr = netstack_iface_addressstr(ni, &l2type);
   char lltype[40];
   char name[IFNAMSIZ];
-  int ret = fprintf(out, "%3d [%s] %s %u %s%smtu %u\n",
+  netstack_iface_qcounts qc;
+  netstack_iface_queuecounts(ni, &qc);
+  int ret = fprintf(out, "%3d [%s] %s %u %s%smtu %u rxq %d txq %d\n",
                     netstack_iface_index(ni),
                     netstack_iface_name(ni, name),
                     netstack_iface_typestr(ni, lltype, sizeof(lltype)), l2type,
                     llstr ? llstr : "", llstr ? " " : "",
-                    netstack_iface_mtu(ni));
+                    netstack_iface_mtu(ni),
+                    qc.rx, qc.tx);
   free(llstr);
   if(ret < 0){
     return -1;

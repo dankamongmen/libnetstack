@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <string.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -14,6 +15,16 @@
 #include <netlink/netlink.h>
 #include <linux/rtnetlink.h>
 #include "netstack.h"
+
+// convert an RTA into a uint64_t
+static inline int
+rtattrtou32(const struct rtattr* rta, uint32_t* ul){
+  if(rta == NULL){
+    return -1;
+  }
+  *ul = *(const uint32_t*)RTA_DATA(rta); // ugh, yes, this is how it's done
+  return 0;
+}
 
 // Naive hash. Interface numbers are assigned successively, so there ought
 // generally not be clashes with a linear mod map.
@@ -1107,6 +1118,23 @@ char* netstack_iface_qdisc(const struct netstack_iface* ni){
     return NULL;
   }
   return strndup(RTA_DATA(rta), RTA_PAYLOAD(rta));
+}
+
+void netstack_iface_queuecounts(const struct netstack_iface* ni,
+                                struct netstack_iface_qcounts* nqc){
+  uint32_t val;
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_NUM_RX_QUEUES);
+  nqc->rx = -1;
+  if(rta && !rtattrtou32(rta, &val)){
+    nqc->rx = val;
+  }
+  rta = netstack_iface_attr(ni, IFLA_NUM_TX_QUEUES);
+  nqc->tx = -1;
+  if(rta && !rtattrtou32(rta, &val)){
+    nqc->tx = val;
+  }
+  nqc->combined = -1; // FIXME
+  nqc->xdp = -1;      // FIXME
 }
 
 const struct rtattr* netstack_iface_attr(const netstack_iface* ni, int attridx){

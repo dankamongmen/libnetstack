@@ -223,6 +223,22 @@ netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats* st
   return netstack_rtattrcpy_exact(rta, stats, sizeof(*stats));
 }
 
+// information about hardware queues. a value of -1 indicates that the driver
+// does not provide information about the relevant field. different queues
+// are typically mapped to different interrupts. these interrupts can then be
+// distributed across cores to achieve parallelism in irq handling.
+typedef struct netstack_iface_qcounts {
+  // cards with multiple receive queues typically support simple rules to
+  // distribute flows among the queues (to avoid reordering within a flow).
+  int rx;
+  int tx;
+  int combined;
+  int xdp;
+} netstack_iface_qcounts;
+
+void netstack_iface_queuecounts(const struct netstack_iface* ni,
+                                struct netstack_iface_qcounts* nqc);
+
 // Functions for inspecting netstack_neighs
 const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int attridx);
 unsigned netstack_neigh_family(const struct netstack_neigh* nn); // always AF_UNSPEC
