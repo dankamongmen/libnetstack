@@ -1327,8 +1327,10 @@ netstack_stats* netstack_sample_stats(const netstack* ns, netstack_stats* stats)
   pthread_mutex_lock(&unsafe_ns->hashlock);
   stats->ifaces = ns->iface_count;
   pthread_mutex_unlock(&unsafe_ns->hashlock);
+  // FIXME not yet maintained
   stats->addrs = 0;
   stats->routes = 0;
   stats->neighs = 0;
+  stats->zombie_shares = 0;
   return stats;
 }
