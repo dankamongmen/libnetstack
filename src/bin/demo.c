@@ -11,6 +11,7 @@ int main(void){
   sigaddset(&sigset, SIGTERM);
   sigaddset(&sigset, SIGINT);
   netstack_opts nopts = {
+    .initial_events = NETSTACK_INITIAL_EVENTS_BLOCK,
     .iface_cb = vnetstack_print_iface,
     .iface_curry = stdout,
     .addr_cb = vnetstack_print_addr,
