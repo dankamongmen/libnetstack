@@ -2,12 +2,10 @@
 #define LIBNETSTACK_NETSTACK
 
 #include <stdio.h>
-//#include <net/if.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <linux/if.h>
-#include <arpa/inet.h>
 #include <linux/rtnetlink.h>
 
 #ifdef __cplusplus
@@ -301,13 +299,7 @@ netstack_neigh_ipv6router(const struct netstack_neigh* nn){
   return netstack_neigh_flags(nn) & NTF_ROUTER;
 }
 
-static inline char*
-netstack_l3addrstr(int fam, const void* addr, char* str, size_t slen){
-  if(!inet_ntop(fam, addr, str, slen)){
-    return NULL;
-  }
-  return str;
-}
+char* netstack_l3addrstr(int fam, const void* addr, char* str, size_t slen);
 
 static inline int
 netstack_rtattr_l3addr(int fam, const struct rtattr* rta,

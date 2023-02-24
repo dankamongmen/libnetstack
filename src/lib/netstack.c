@@ -7,6 +7,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netlink/msg.h>
 #include <linux/if_link.h>
@@ -1187,6 +1188,13 @@ const struct rtattr* netstack_neigh_attr(const struct netstack_neigh* nn, int at
     return NULL;
   }
   return netstack_extract_rta_attr(nn->rtabuf, nn->rtabuflen, attridx);
+}
+
+char* netstack_l3addrstr(int fam, const void* addr, char* str, size_t slen){
+  if(!inet_ntop(fam, addr, str, slen)){
+    return NULL;
+  }
+  return str;
 }
 
 char* netstack_iface_name(const netstack_iface* ni, char* name){
