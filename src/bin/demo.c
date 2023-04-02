@@ -8,12 +8,16 @@
 static inline void
 print_iface(const struct netstack_iface* ni, netstack_event_e etype, void* vf){
   vnetstack_print_iface(ni, etype, vf);
-  int irq = netstack_iface_irq(ni, 0);
-  if(irq >= 0){
-    printf("  IRQ: %d\n", irq);
+  int irqcount = netstack_iface_irqcount(ni);
+  if(irqcount > 0){
+    int irq = netstack_iface_irq(ni, 0);
+    fprintf(vf, "      %d irq%s", irqcount, irqcount == 1 ? "" : "s");
+    if(irq >= 0){
+      fprintf(vf, ", base: %d", irq);
+    }
+    fprintf(vf, "\n");
   }
 }
-
 
 int main(void){
   sigset_t sigset;
