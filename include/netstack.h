@@ -152,6 +152,9 @@ static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
   return netstack_iface_flags(ni) & IFF_PROMISC;
 }
 
+// Get the IRQ corresponding to queue index qidx, or -1 on failure.
+int netstack_iface_irq(const struct netstack_iface* ni, unsigned qidx);
+
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
 // stored to this variable. otherwise, NULL will be returned.

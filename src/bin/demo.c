@@ -5,6 +5,16 @@
 #include <stdlib.h>
 #include <netstack.h>
 
+static inline void
+print_iface(const struct netstack_iface* ni, netstack_event_e etype, void* vf){
+  vnetstack_print_iface(ni, etype, vf);
+  int irq = netstack_iface_irq(ni, 0);
+  if(irq >= 0){
+    printf("  IRQ: %d\n", irq);
+  }
+}
+
+
 int main(void){
   sigset_t sigset;
   sigemptyset(&sigset);
@@ -12,7 +22,7 @@ int main(void){
   sigaddset(&sigset, SIGINT);
   netstack_opts nopts = {
     .initial_events = NETSTACK_INITIAL_EVENTS_BLOCK,
-    .iface_cb = vnetstack_print_iface,
+    .iface_cb = print_iface,
     .iface_curry = stdout,
     .addr_cb = vnetstack_print_addr,
     .addr_curry = stdout,

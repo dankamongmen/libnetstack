@@ -474,6 +474,11 @@ unsigned netstack_iface_count(const netstack* ns){
   return ret;
 }
 
+int netstack_iface_irq(const netstack_iface* ni, unsigned qidx){
+  // FIXME
+  return -1;
+}
+
 int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int* n,
                              void* objs, size_t* obytes,
                              netstack_enumerator* streamer){
