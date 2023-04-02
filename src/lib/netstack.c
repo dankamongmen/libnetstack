@@ -1,13 +1,17 @@
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
+#include <dirent.h>
 #include <pthread.h>
+#include <sys/stat.h>
 #include <stdatomic.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netlink/msg.h>
 #include <linux/if_link.h>
@@ -474,9 +478,76 @@ unsigned netstack_iface_count(const netstack* ns){
   return ret;
 }
 
+static int
+netstack_iface_irqinfo(const netstack_iface* ni, unsigned long* minirq, unsigned long* maxirq){
+  int sfd = open("/sys/class/net", O_CLOEXEC | O_DIRECTORY | O_RDONLY);
+  if(sfd < 0){
+    return -1;
+  }
+  int dfd = openat(sfd, ni->name, O_CLOEXEC | O_DIRECTORY | O_RDONLY);
+  close(sfd);
+  if(dfd < 0){
+    return -1;
+  }
+  int mfd = openat(dfd, "device/msi_irqs", O_CLOEXEC | O_DIRECTORY | O_RDONLY);
+  close(dfd);
+  if(mfd < 0){
+    return -1;
+  }
+  DIR* d = fdopendir(mfd);
+  if(!d){
+    close(mfd);
+    return -1;
+  }
+  *minirq = ULONG_MAX;
+  *maxirq = 0;
+  struct dirent* dent;
+  while( (dent = readdir(d)) ){
+    if(dent->d_type == DT_DIR){
+      continue;
+    }
+    char* endp;
+    errno = 0;
+    unsigned long irqname = strtoul(dent->d_name, &endp, 0);
+    if(*endp || (irqname == ULONG_MAX && errno == ERANGE)){
+      continue;
+    }
+    if(irqname < *minirq){
+      *minirq = irqname;
+    }
+    if(irqname > *maxirq){
+      *maxirq = irqname;
+    }
+  }
+  close(mfd);
+  if(*minirq > *maxirq){
+    return -1;
+  }
+  return 0;
+}
+
 int netstack_iface_irq(const netstack_iface* ni, unsigned qidx){
-  // FIXME
-  return -1;
+  unsigned long min, max;
+  if(netstack_iface_irqinfo(ni, &min, &max) < 0){
+    return -1;
+  }
+  // FIXME this assumes IRQs are contiguous, and i have no idea whether
+  // that's true. it is true for all devices i've checked.
+  if(ULONG_MAX - qidx < min){
+    return -1;
+  }
+  if(min + qidx > max){
+    return -1;
+  }
+  return min + qidx;
+}
+
+unsigned netstack_iface_irqcount(const struct netstack_iface* ni){
+  unsigned long min, max;
+  if(netstack_iface_irqinfo(ni, &min, &max) < 0){
+    return -1;
+  }
+  return max - min + 1;
 }
 
 int netstack_iface_enumerate(const netstack* ns, uint32_t* offsets, int* n,

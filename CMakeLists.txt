@@ -33,6 +33,10 @@ target_compile_options(netstack
     -Wall -Wextra -W -Wshadow
     -D_POSIX_C_SOURCE=200809L # for strndup()
 )
+target_compile_definitions(netstack
+  PRIVATE
+   _DEFAULT_SOURCE
+)
 
 add_library(netstack-static STATIC ${LIBSRCS})
 target_include_directories(netstack-static PRIVATE include)
@@ -53,7 +57,6 @@ target_compile_options(netstack-static PRIVATE
   ${NL3_CFLAGS} ${NL3_CFLAGS_OTHER}
   -Wall -Wextra -W -Wshadow
 )
-
 file(GLOB BINSRCS CONFIGURE_DEPENDS src/bin/*.c)
 add_executable(netstack-demo ${BINSRCS})
 target_include_directories(netstack-demo PRIVATE include)

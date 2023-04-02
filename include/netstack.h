@@ -152,8 +152,12 @@ static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
   return netstack_iface_flags(ni) & IFF_PROMISC;
 }
 
-// Get the IRQ corresponding to queue index qidx, or -1 on failure.
+// Get the nth IRQ of the device, or -1 on failure. Currently only works for
+// directly-attached PCIe NICs using MSI.
 int netstack_iface_irq(const struct netstack_iface* ni, unsigned qidx);
+
+// Get the number of MSI interrupts for the device.
+unsigned netstack_iface_irqcount(const struct netstack_iface* ni);
 
 // pass in the maximum number of bytes available for copying the link-layer
 // address. if this is sufficient, the actual number of bytes copied will be
