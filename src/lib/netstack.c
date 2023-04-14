@@ -495,8 +495,8 @@ netstack_iface_irqinfo(const netstack_iface* ni, unsigned long* minirq, unsigned
     return -1;
   }
   DIR* d = fdopendir(mfd);
+  close(mfd);
   if(!d){
-    close(mfd);
     return -1;
   }
   *minirq = ULONG_MAX;
@@ -519,7 +519,7 @@ netstack_iface_irqinfo(const netstack_iface* ni, unsigned long* minirq, unsigned
       *maxirq = irqname;
     }
   }
-  close(mfd);
+  closedir(d);
   if(*minirq > *maxirq){
     return -1;
   }
@@ -1380,7 +1380,7 @@ unsigned netstack_route_flags(const netstack_route* nr){
 char* netstack_l2addrstr(unsigned l2type, size_t len, const void* addr){
   (void)l2type; // FIXME need for quirks
   // Each byte becomes two ASCII characters + separator or nul
-  size_t slen = ((len) == 0 ? 1 : (len == 1) ? 2 : (len) * 3);
+  size_t slen = len == 0 ? 1 : len * 3;
   char* ret = (char*)malloc(slen);
   if(ret == NULL){
     return NULL;
