@@ -495,8 +495,9 @@ netstack_iface_irqinfo(const netstack_iface* ni, unsigned long* minirq, unsigned
     return -1;
   }
   DIR* d = fdopendir(mfd);
-  close(mfd);
+  // the argument passed to a successfuly fdopendir() must not be further used
   if(!d){
+    close(mfd); // but we must close it here
     return -1;
   }
   *minirq = ULONG_MAX;
