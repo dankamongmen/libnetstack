@@ -153,7 +153,8 @@ static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
 }
 
 // Get the nth IRQ of the device, or -1 on failure. Currently only works for
-// directly-attached PCIe NICs using MSI.
+// directly-attached PCIe NICs (i.e. we don't look up xhci_hcd IRQs for a USB
+// device) using MSI.
 int netstack_iface_irq(const struct netstack_iface* ni, unsigned qidx);
 
 // Get the number of MSI interrupts for the device.

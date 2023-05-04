@@ -922,6 +922,19 @@ subscribe_to_netlink(const netstack* ns, int* dumpmsgs, int* dumpcount){
   return 0;
 }
 
+static *
+nl_socket_connect(int family){
+  if((ns->nl = nl_socket_alloc()) == NULL){
+    return NULL;
+  }
+  nl_socket_disable_seq_check(ns->nl);
+  if(nl_connect(ns->nl, NETLINK_ROUTE)){
+    nl_socket_free(ns->nl);
+    return -1;
+  }
+  return NULL;
+}
+
 static int
 netstack_init(netstack* ns, const netstack_opts* opts){
   if(!validate_options(opts)){
@@ -949,12 +962,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   ns->iface_count = 0;
   ns->iface_bytes = 0;
   memset(&ns->iface_hash, 0, sizeof(ns->iface_hash));
-  if((ns->nl = nl_socket_alloc()) == NULL){
-    return -1;
-  }
-  nl_socket_disable_seq_check(ns->nl);
-  if(nl_connect(ns->nl, NETLINK_ROUTE)){
-    nl_socket_free(ns->nl);
+  if((ns->nl = nl_socket_connect(NETLINK_ROUTE)) == NULL){
     return -1;
   }
   int dumpercount = sizeof(dumpmsgs) / sizeof(*dumpmsgs);

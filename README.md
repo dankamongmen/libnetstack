@@ -1,7 +1,7 @@
 # [libnetstack](https://nick-black.com/dankwiki/index.php/Libnetstack)
 A small C library for tracking and querying the local networking stack
 
-by Nick Black <dankamongmen@gmail.com>
+by nick black <dankamongmen@gmail.com>
 
 [![Build Status](https://drone.dsscaw.com:4443/api/badges/dankamongmen/libnetstack/status.svg)](https://drone.dsscaw.com:4443/dankamongmen/libnetstack)
 
@@ -48,7 +48,8 @@ I intend to support FreeBSD in the future.
 I believe libnetstack to be more performant on the very complex networking
 stacks present in certain environments, and to better serve heavily parallel
 access. The typical user is unlikely to see a meaningful performance
-difference.
+difference. Also, libnl hasn't seen an update since 2014, and definitely
+doesn't support things like [ethtool over netlink](https://www.kernel.org/doc/html/latest/networking/ethtool-netlink.html).
 
 Libnetstack is Apache-licensed, whereas libnl-route is LGPL.
 
