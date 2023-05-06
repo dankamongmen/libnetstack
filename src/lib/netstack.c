@@ -20,6 +20,7 @@
 #include <netlink/netlink.h>
 #include <linux/rtnetlink.h>
 #include "netstack.h"
+#include "ethtool.h"
 
 // convert an RTA into a uint64_t
 static inline int
@@ -90,7 +91,8 @@ typedef struct name_node {
 } name_node;
 
 typedef struct netstack {
-  struct nl_sock* nl;  // netlink connection abstraction from libnl
+  struct nl_sock* nl;        // netlink connection abstraction from libnl
+  struct nl_sock* ethtoolnl; // netlink connection abstraction from libnl
   pthread_t rxtid;
   pthread_t txtid;
   // We can only have one command of the class e.g. DUMP outstanding at a time.
@@ -922,17 +924,18 @@ subscribe_to_netlink(const netstack* ns, int* dumpmsgs, int* dumpcount){
   return 0;
 }
 
-static *
+static struct nl_sock*
 nl_socket_connect(int family){
-  if((ns->nl = nl_socket_alloc()) == NULL){
+  struct nl_sock* nls;
+  if((nls = nl_socket_alloc()) == NULL){
     return NULL;
   }
-  nl_socket_disable_seq_check(ns->nl);
-  if(nl_connect(ns->nl, NETLINK_ROUTE)){
-    nl_socket_free(ns->nl);
-    return -1;
+  nl_socket_disable_seq_check(nls);
+  if(nl_connect(nls, family)){
+    nl_socket_free(nls);
+    return NULL;
   }
-  return NULL;
+  return nls;
 }
 
 static int
@@ -965,8 +968,13 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   if((ns->nl = nl_socket_connect(NETLINK_ROUTE)) == NULL){
     return -1;
   }
+  if((ns->ethtoolnl = ethtool_socket_connect(opts)) == NULL){
+    nl_socket_free(ns->nl);
+    return -1;
+  }
   int dumpercount = sizeof(dumpmsgs) / sizeof(*dumpmsgs);
   if(subscribe_to_netlink(ns, dumpmsgs, &dumpercount)){
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
@@ -985,25 +993,30 @@ netstack_init(netstack* ns, const netstack_opts* opts){
   // Passes this netstack object to libnl. The nl_sock thus must be destroyed
   // before the netstack itself is.
   if(nl_socket_modify_cb(ns->nl, NL_CB_VALID, NL_CB_CUSTOM, msg_handler, ns)){
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
   if(nl_socket_modify_err_cb(ns->nl, NL_CB_CUSTOM, err_handler, ns)){
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
   if(pthread_mutex_init(&ns->hashlock, NULL)){
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
   if(pthread_mutex_init(&ns->txlock, NULL)){
     pthread_mutex_destroy(&ns->hashlock);
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
   if(pthread_cond_init(&ns->txcond, NULL)){
     pthread_mutex_destroy(&ns->txlock);
     pthread_mutex_destroy(&ns->hashlock);
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
@@ -1011,6 +1024,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     pthread_cond_destroy(&ns->txcond);
     pthread_mutex_destroy(&ns->txlock);
     pthread_mutex_destroy(&ns->hashlock);
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
@@ -1020,6 +1034,7 @@ netstack_init(netstack* ns, const netstack_opts* opts){
     pthread_cond_destroy(&ns->txcond);
     pthread_mutex_destroy(&ns->txlock);
     pthread_mutex_destroy(&ns->hashlock);
+    nl_socket_free(ns->ethtoolnl);
     nl_socket_free(ns->nl);
     return -1;
   }
