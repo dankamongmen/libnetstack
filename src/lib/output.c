@@ -20,7 +20,12 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
   char name[IFNAMSIZ];
   netstack_iface_qcounts qc;
   netstack_iface_queuecounts(ni, &qc);
-  int ret = fprintf(out, "%3d [%s] %s %u %s%smtu %u rxq %d txq %d\n",
+  int irqcount = netstack_iface_irqcount(ni);
+  int irq;
+  if(irqcount > 0){
+    irq = netstack_iface_irq(ni, 0);
+  }
+  int ret = fprintf(out, "%3d [%s] %s %u %s%smtu %u rxq %d txq %d ",
                     netstack_iface_index(ni),
                     netstack_iface_name(ni, name),
                     netstack_iface_typestr(ni, lltype, sizeof(lltype)), l2type,
@@ -28,6 +33,15 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
                     netstack_iface_mtu(ni),
                     qc.rx, qc.tx);
   free(llstr);
+  if(ret > 0){
+    if(irqcount > 1){
+      ret = fprintf(out, "irqs %d-%d\n", irq, irq + irqcount - 1);
+    }else if(irqcount == 1){
+      ret = fprintf(out, "irq %d\n", irq);
+    }else{
+      ret = fprintf(out, "no irqs\n");
+    }
+  }
   if(ret < 0){
     return -1;
   }

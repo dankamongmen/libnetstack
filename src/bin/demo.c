@@ -5,20 +5,6 @@
 #include <stdlib.h>
 #include <netstack.h>
 
-static inline void
-print_iface(const struct netstack_iface* ni, netstack_event_e etype, void* vf){
-  vnetstack_print_iface(ni, etype, vf);
-  int irqcount = netstack_iface_irqcount(ni);
-  if(irqcount > 0){
-    int irq = netstack_iface_irq(ni, 0);
-    fprintf(vf, "      %d irq%s", irqcount, irqcount == 1 ? "" : "s");
-    if(irq >= 0){
-      fprintf(vf, ", base: %d", irq);
-    }
-    fprintf(vf, "\n");
-  }
-}
-
 int main(void){
   sigset_t sigset;
   sigemptyset(&sigset);
@@ -26,7 +12,7 @@ int main(void){
   sigaddset(&sigset, SIGINT);
   netstack_opts nopts = {
     .initial_events = NETSTACK_INITIAL_EVENTS_BLOCK,
-    .iface_cb = print_iface,
+    .iface_cb = vnetstack_print_iface,
     .iface_curry = stdout,
     .addr_cb = vnetstack_print_addr,
     .addr_curry = stdout,
@@ -53,6 +39,7 @@ int main(void){
       netstack_stats stats;
       netstack_sample_stats(ns, &stats);
       netstack_print_stats(&stats, stdout);
+      netstack_iface_stats_refresh(ns);
     }else{
       fprintf(stderr, "Couldn't wait on signals (%s)\n", strerror(errno));
       return EXIT_FAILURE;
