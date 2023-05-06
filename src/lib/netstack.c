@@ -124,6 +124,26 @@ typedef struct netstack {
   netstack_opts opts; // copied wholesale in netstack_create()
 } netstack;
 
+// add a request to the txqueue, if there's room
+static int
+queue_request(netstack* ns, int req){
+  bool queued = false;
+  pthread_mutex_lock(&ns->txlock);
+  if(ns->txqueue[ns->queueidx] == -1){
+    ns->txqueue[ns->queueidx] = req;
+    if(++ns->queueidx == sizeof(ns->txqueue) / sizeof(*ns->txqueue)){
+      ns->queueidx = 0;
+    }
+    if(ns->queueidx != ns->dequeueidx){
+      ns->txqueue[ns->queueidx] = -1;
+    }
+    queued = true;
+  }
+  pthread_mutex_unlock(&ns->txlock);
+  pthread_cond_signal(&ns->txcond);
+  return queued ? 0 : -1;
+}
+
 static void
 destroy_name_trie(name_node* node){
   if(node){
@@ -476,6 +496,14 @@ unsigned netstack_iface_count(const netstack* ns){
   ret = ns->iface_count;
   pthread_mutex_unlock(&unsafe_ns->hashlock);
   return ret;
+}
+
+int netstack_iface_stats_refresh(netstack* ns){
+  if(queue_request(ns, RTM_GETSTATS)){
+    return -1;
+  }
+  // FIXME need to wait on response!
+  return 0;
 }
 
 static int
