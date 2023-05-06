@@ -922,17 +922,18 @@ subscribe_to_netlink(const netstack* ns, int* dumpmsgs, int* dumpcount){
   return 0;
 }
 
-static *
+struct nl_sock*
 nl_socket_connect(int family){
-  if((ns->nl = nl_socket_alloc()) == NULL){
+  struct nl_sock *nls;
+  if((nls = nl_socket_alloc()) == NULL){
     return NULL;
   }
-  nl_socket_disable_seq_check(ns->nl);
-  if(nl_connect(ns->nl, NETLINK_ROUTE)){
-    nl_socket_free(ns->nl);
-    return -1;
+  nl_socket_disable_seq_check(nls);
+  if(nl_connect(nls, family)){
+    nl_socket_free(nls);
+    return NULL;
   }
-  return NULL;
+  return nls;
 }
 
 static int
