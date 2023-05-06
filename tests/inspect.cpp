@@ -9,7 +9,7 @@ IfaceCB(const netstack_iface* ni, netstack_event_e etype,
   if(etype != NETSTACK_MOD){
     return;
   }
-  struct rtnl_link_stats stats;
+  struct rtnl_link_stats64 stats;
   ASSERT_TRUE(netstack_iface_stats(ni, &stats));
 }
 

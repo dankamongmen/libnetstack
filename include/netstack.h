@@ -152,6 +152,11 @@ static inline bool netstack_iface_promisc(const struct netstack_iface* ni){
   return netstack_iface_flags(ni) & IFF_PROMISC;
 }
 
+// Refresh stats for all interfaces. Blocking call, as it involves writing to
+// and reading a reply from netlink. Following a success,
+// netstack_iface_stats() can be used to get the new stats.
+int netstack_iface_stats_refresh(struct netstack*);
+
 // Get the nth IRQ of the device, or -1 on failure. Currently only works for
 // directly-attached PCIe NICs (i.e. we don't look up xhci_hcd IRQs for a USB
 // device) using MSI.
@@ -224,8 +229,8 @@ char* netstack_iface_qdisc(const struct netstack_iface* ni);
 // Returns interface stats if they were reported, filling in the stats object
 // and returning 0. Returns -1 if there were no stats.
 static inline bool
-netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats* stats){
-  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_STATS);
+netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats64* stats){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_STATS64);
   return netstack_rtattrcpy_exact(rta, stats, sizeof(*stats));
 }
 

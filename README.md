@@ -452,13 +452,26 @@ netstack_iface_link(const struct netstack_iface* ni){
 // heap-allocated, and must be free()d by the caller.
 char* netstack_iface_qdisc(const struct netstack_iface* ni);
 
+// Refresh stats for all interfaces. Blocking call, as it involves writing to
+// and reading a reply from netlink. Following a success,
+// netstack_iface_stats() can be used to get the new stats.
+int netstack_iface_stats_refresh(struct netstack*);
+
 // Returns interface stats if they were reported, filling in the stats object
 // and returning 0. Returns -1 if there were no stats.
 static inline bool
-netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats* stats){
-  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_STATS);
+netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats64* stats){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_STATS64);
   return netstack_rtattrcpy_exact(rta, stats, sizeof(*stats));
 }
+
+// Get the nth IRQ of the device, or -1 on failure. Currently only works for
+// directly-attached PCIe NICs (i.e. we don't look up xhci_hcd IRQs for a USB
+// device) using MSI.
+int netstack_iface_irq(const struct netstack_iface* ni, unsigned qidx);
+
+// Get the number of MSI interrupts for the device.
+unsigned netstack_iface_irqcount(const struct netstack_iface* ni);
 ```
 
 ### Addresses
