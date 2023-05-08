@@ -214,12 +214,20 @@ netstack_iface_mtu(const struct netstack_iface* ni){
 }
 
 // Returns the link type (as opposed to the device type, as returned by
-// netstack_iface_type
+// netstack_iface_type).
 static inline int
 netstack_iface_link(const struct netstack_iface* ni){
   const struct rtattr* rta = netstack_iface_attr(ni, IFLA_LINK);
   int ret;
   return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : 0;
+}
+
+// Returns the interface index of a bound device's master.
+static inline int
+netstack_iface_master(const struct netstack_iface* ni){
+  const struct rtattr* rta = netstack_iface_attr(ni, IFLA_MASTER);
+  int ret;
+  return netstack_rtattrcpy_exact(rta, &ret, sizeof(ret)) ? ret : -1;
 }
 
 // Returns the queuing discipline, or NULL if none was reported. The return is

@@ -33,14 +33,22 @@ int netstack_print_iface(const struct netstack_iface* ni, FILE* out){
                     netstack_iface_mtu(ni),
                     qc.rx, qc.tx);
   free(llstr);
-  if(ret > 0){
-    if(irqcount > 1){
-      ret = fprintf(out, "irqs %d-%d\n", irq, irq + irqcount - 1);
-    }else if(irqcount == 1){
-      ret = fprintf(out, "irq %d\n", irq);
-    }else{
-      ret = fprintf(out, "no irqs\n");
-    }
+  if(ret < 0){
+    return -1;
+  }
+  int master = netstack_iface_master(ni);
+  if(master >= 0){
+    ret = fprintf(out, "master %d ", master);
+  }
+  if(ret < 0){
+    return -1;
+  }
+  if(irqcount > 1){
+    ret = fprintf(out, "irqs %d-%d\n", irq, irq + irqcount - 1);
+  }else if(irqcount == 1){
+    ret = fprintf(out, "irq %d\n", irq);
+  }else{
+    ret = fprintf(out, "no irqs\n");
   }
   if(ret < 0){
     return -1;

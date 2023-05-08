@@ -499,7 +499,7 @@ unsigned netstack_iface_count(const netstack* ns){
 }
 
 int netstack_iface_stats_refresh(netstack* ns){
-  if(queue_request(ns, RTM_GETSTATS)){
+  if(queue_request(ns, RTM_GETLINK)){
     return -1;
   }
   // FIXME need to wait on response!
