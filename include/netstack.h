@@ -239,6 +239,11 @@ char* netstack_iface_qdisc(const struct netstack_iface* ni);
 static inline bool
 netstack_iface_stats(const struct netstack_iface* ni, struct rtnl_link_stats64* stats){
   const struct rtattr* rta = netstack_iface_attr(ni, IFLA_STATS64);
+  if(netstack_rtattrcpy_exact(rta, stats, sizeof(*stats))){
+    return true;;
+  }
+  // fall back to lame 32-bit stats
+  rta = netstack_iface_attr(ni, IFLA_STATS);
   return netstack_rtattrcpy_exact(rta, stats, sizeof(*stats));
 }
 
