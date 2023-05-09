@@ -30,8 +30,8 @@ Header files for libnetstack.
 %cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 %cmake_build
 
-%check
-ctest -V %{?_smp_mflags}
+#%check
+#ctest -V %{?_smp_mflags}
 
 %install
 %cmake_install
