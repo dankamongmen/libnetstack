@@ -1091,14 +1091,12 @@ destroy_iface_cache(netstack* ns){
 int netstack_destroy(netstack* ns){
   int ret = 0;
   if(ns){
-    fprintf(stderr, "DESTROYING %p\n", ns);
     if(pthread_cancel(ns->rxtid) == 0 && pthread_cancel(ns->txtid) == 0){
       ret |= pthread_join(ns->txtid, NULL);
       ret |= pthread_join(ns->rxtid, NULL);
     }else{
       ret = -1;
     }
-    fprintf(stderr, "CANCEL RET %d\n", ret);
     nl_socket_free(ns->nl);
     ret |= pthread_cond_destroy(&ns->txcond);
     ret |= pthread_mutex_destroy(&ns->txlock);
