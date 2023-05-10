@@ -49,5 +49,5 @@ Header files for libnetstack.
 %{_libdir}/cmake/libnetstack
 
 %changelog
-* Fri May 06 2023 nick black <nickblack@linux.com> - 0.7.2-1
+* Sat May 06 2023 nick black <nickblack@linux.com> - 0.7.2-1
 - Initial version
