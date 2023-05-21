@@ -28,3 +28,13 @@ Description: Stateful netstack model built atop rtnetlink
  Connects to the kernel via an rtnetlink socket, collects information
  about the current network namespace (devices, routes, addresses, etc.),
  and subscribes to updates, about which it can notify the caller.
+
+Package: netstack-bin
+Architecture: any
+Multi-Arch: foreign
+Section: network
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Network enumeration tool
+ Connects to the kernel via libnetstack, collects information
+ about the current network namespace (devices, routes, addresses, etc.),
+ and subscribes to updates, which it displays.
