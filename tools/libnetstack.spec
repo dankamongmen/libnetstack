@@ -1,5 +1,5 @@
 Name: libnetstack
-Version: 0.7.2
+Version: 0.7.3
 Release: 1%{?dist}
 Summary: Track addresses, interfaces, routes and neighbors
 License: Apache-2.0
@@ -49,5 +49,5 @@ Header files for libnetstack.
 %{_libdir}/cmake/libnetstack
 
 %changelog
-* Sat May 06 2023 nick black <nickblack@linux.com> - 0.7.2-1
+* Tue May 23 2023 nick black <nickblack@linux.com> - 0.7.3-1
 - Initial version
